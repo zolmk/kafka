@@ -1,0 +1,33 @@
+org.apache.kafka.server.share.CachedSharePartitionTest:
+- testCachedSharePartitionEqualsAndHashCode
+org.apache.kafka.server.share.persister.DefaultStatePersisterTest:
+- testDefaultPersisterClose
+- testReadStateSuccess
+- testReadStateValidate
+- testWriteStateSuccess
+- testWriteStateValidate
+org.apache.kafka.server.share.persister.PersisterStateManagerTest:
+- testFindCoordinatorAttemptsExhausted
+- testFindCoordinatorFatalError
+- testFindCoordinatorSuccess
+- testPersisterStateManagerClose
+- testReadStateRequestCoordinatorFoundOnRetry
+- testReadStateRequestCoordinatorFoundSuccessfully
+- testReadStateRequestFailButCoordinatorFoundSuccessfully
+- testReadStateRequestFailureMaxRetriesExhausted
+- testReadStateRequestIllegalStateCoordinatorFoundSuccessfully
+- testReadStateRequestRetryWithCoordinatorNodeLookup
+- testReadStateRequestWithCoordinatorNodeLookup
+- testWriteStateRequestBatchingWithCoordinatorNodeLookup
+- testWriteStateRequestCoordinatorFoundOnRetry
+- testWriteStateRequestCoordinatorFoundSuccessfully
+- testWriteStateRequestFailButCoordinatorSuccess
+- testWriteStateRequestFailedMaxRetriesExhausted
+- testWriteStateRequestWithCoordinatorNodeLookup
+- testWriteStateRequestWithRetryAndCoordinatorNodeLookup
+org.apache.kafka.server.share.session.ShareSessionCacheTest:
+- testResizeCachedSessions
+- testShareSessionCache
+org.apache.kafka.server.share.session.ShareSessionTest:
+- testPartitionsToLogString
+- testPartitionsToLogStringEmpty
