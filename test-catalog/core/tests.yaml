@@ -1324,12 +1324,8 @@ kafka.coordinator.group.MemberMetadataTest:
 - testVoteForPreferredProtocol
 - testVoteRaisesOnNoSupportedProtocols
 kafka.coordinator.transaction.ProducerIdManagerTest:
-- testConcurrentGeneratePidRequests
 - testExceedProducerIdLimitZk
 - testGetProducerIdZk
-- testInvalidRanges
-- testRetryBackoff
-- testUnrecoverableErrors
 kafka.coordinator.transaction.ProducerIdsIntegrationTest:
 - testUniqueProducerIds
 kafka.coordinator.transaction.TransactionCoordinatorConcurrencyTest:
