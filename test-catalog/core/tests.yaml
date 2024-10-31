@@ -541,7 +541,6 @@ kafka.api.PlaintextAdminIntegrationTest:
 - testOffsetsForTimesAfterDeleteRecords
 - testReplicaCanFetchFromLogStartOffsetAfterDeleteRecords
 - testSeekAfterDeleteRecords
-- testShareGroups
 - testValidIncrementalAlterConfigs
 kafka.api.PlaintextConsumerAssignTest:
 - testAssignAndCommitAsyncNotCommitted
@@ -1990,7 +1989,6 @@ kafka.log.remote.RemoteLogManagerTest:
 - testEpochEntriesAsByteBuffer
 - testFailedCopyShouldDeleteTheDanglingSegment
 - testFailedDeleteExpiredSegments
-- testFetchOffsetByTimestampWithTieredStorageDoesNotFetchIndexWhenExistsLocally
 - testFetchQuotaManagerConfig
 - testFetchRemoteLogSegmentMetadata
 - testFindHighestRemoteOffset
