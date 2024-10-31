@@ -3214,6 +3214,10 @@ org.apache.kafka.common.network.KafkaChannelTest:
 - testSending
 org.apache.kafka.common.network.NetworkReceiveTest:
 - testBytesRead
+- testRequiredMemoryAmountKnownWhenNotSet
+- testRequiredMemoryAmountKnownWhenSet
+- testSizeAfterRead
+- testSizeWithPredefineBuffer
 org.apache.kafka.common.network.SaslChannelBuilderTest:
 - testClientChannelBuilderWithBrokerConfigs
 - testCloseAfterConfigIsIdempotent
