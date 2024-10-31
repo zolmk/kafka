@@ -3849,12 +3849,16 @@ kafka.server.share.SharePartitionManagerTest:
 - testReleaseSessionWithIncorrectGroupId
 - testReleaseSessionWithIncorrectMemberId
 - testReleaseSessionWithNullShareSession
+- testReplicaManagerFetchException
+- testReplicaManagerFetchMultipleSharePartitionsException
 - testReplicaManagerFetchShouldNotProceed
 - testReplicaManagerFetchShouldProceed
 - testShareFetchContextResponseSize
 - testShareFetchProcessingExceptions
 - testSharePartitionInitializationExceptions
+- testSharePartitionInitializationFailure
 - testSharePartitionKey
+- testSharePartitionPartialInitializationFailure
 - testShareSessionExpiration
 - testShareSessionUpdateTopicIdsBrokerSide
 - testSubsequentShareSession
