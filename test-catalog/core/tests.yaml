@@ -541,6 +541,7 @@ kafka.api.PlaintextAdminIntegrationTest:
 - testOffsetsForTimesAfterDeleteRecords
 - testReplicaCanFetchFromLogStartOffsetAfterDeleteRecords
 - testSeekAfterDeleteRecords
+- testShareGroups
 - testValidIncrementalAlterConfigs
 kafka.api.PlaintextConsumerAssignTest:
 - testAssignAndCommitAsyncNotCommitted
@@ -1989,6 +1990,7 @@ kafka.log.remote.RemoteLogManagerTest:
 - testEpochEntriesAsByteBuffer
 - testFailedCopyShouldDeleteTheDanglingSegment
 - testFailedDeleteExpiredSegments
+- testFetchOffsetByTimestampWithTieredStorageDoesNotFetchIndexWhenExistsLocally
 - testFetchQuotaManagerConfig
 - testFetchRemoteLogSegmentMetadata
 - testFindHighestRemoteOffset
@@ -2499,9 +2501,11 @@ kafka.server.ConsumerGroupDescribeRequestTest:
 - testConsumerGroupDescribeWhenFeatureFlagNotEnabled
 - testConsumerGroupDescribeWithNewGroupCoordinator
 kafka.server.ConsumerGroupHeartbeatRequestTest:
+- testConsumerGroupHeartbeatFailureIfMemberIdMissingForVersionsAbove0
 - testConsumerGroupHeartbeatIsAccessibleWhenNewGroupCoordinatorIsEnabled
 - testConsumerGroupHeartbeatIsInaccessibleWhenDisabledByStaticConfig
 - testConsumerGroupHeartbeatIsInaccessibleWhenFeatureFlagNotEnabled
+- testMemberIdGeneratedOnServerWhenApiVersionIs0
 - testRejoiningStaticMemberGetsAssignmentsBackWhenNewGroupCoordinatorIsEnabled
 - testStaticMemberRemovedAfterSessionTimeoutExpiryWhenNewGroupCoordinatorIsEnabled
 - testUpdateConsumerGroupHeartbeatConfigSuccessful

@@ -258,6 +258,8 @@ org.apache.kafka.controller.ReplicationControlManagerTest:
 - testEligibleLeaderReplicas_EffectiveMinIsr
 - testEligibleLeaderReplicas_ShrinkAndExpandIsr
 - testEligibleLeaderReplicas_UncleanShutdown
+- testExcessiveNumberOfTopicsCannotBeCreated
+- testExcessiveNumberOfTopicsCannotBeCreatedWithAssignments
 - testFenceMultipleBrokers
 - testHandleAssignReplicasToDirs
 - testHandleAssignReplicasToDirsFailsOnOlderMv
