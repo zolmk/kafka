@@ -1,7 +1,3 @@
-org.apache.kafka.streams.scala.StreamToTableJoinScalaIntegrationTestImplicitSerdes:
-- testShouldCountClicksPerRegion
-- testShouldCountClicksPerRegionJava
-- testShouldCountClicksPerRegionWithNamedRepartitionTopic
 org.apache.kafka.streams.scala.TopologyTest:
 - shouldBuildIdenticalTopologyInJavaNScalaAggregate
 - shouldBuildIdenticalTopologyInJavaNScalaCogroup
@@ -10,10 +6,6 @@ org.apache.kafka.streams.scala.TopologyTest:
 - shouldBuildIdenticalTopologyInJavaNScalaProperties
 - shouldBuildIdenticalTopologyInJavaNScalaSimple
 - shouldBuildIdenticalTopologyInJavaNScalaTransform
-org.apache.kafka.streams.scala.WordCountTest:
-- testShouldCountWords
-- testShouldCountWordsJava
-- testShouldCountWordsMaterialized
 org.apache.kafka.streams.scala.kstream.ConsumedTest:
 - testCreateConsumed
 - testCreateConsumedWithResetPolicy
