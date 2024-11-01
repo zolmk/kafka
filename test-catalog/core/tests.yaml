@@ -841,7 +841,8 @@ kafka.api.TransactionsExpirationTest:
 kafka.api.TransactionsTest:
 - testAbortTransactionTimeout
 - testBasicTransactions
-- testBumpTransactionalEpoch
+- testBumpTransactionalEpochWithTV2Disabled
+- testBumpTransactionalEpochWithTV2Enabled
 - testCommitTransactionTimeout
 - testConsecutivelyRunInitTransactions
 - testDelayedFetchIncludesAbortedTransaction

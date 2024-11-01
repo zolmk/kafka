@@ -143,6 +143,7 @@ org.apache.kafka.storage.internals.log.LogSegmentTest:
 - testReadAfterLast
 - testReadBeforeFirstOffset
 - testReadFromGap
+- testReadFromMiddleOfBatch
 - testReadOnEmptySegment
 - testReadWhenNoMaxPosition
 - testRecoverTransactionIndex
@@ -350,7 +351,8 @@ org.apache.kafka.tiered.storage.integration.RollAndOffloadActiveSegmentTest:
 org.apache.kafka.tiered.storage.integration.TransactionsWithTieredStoreTest:
 - testAbortTransactionTimeout
 - testBasicTransactions
-- testBumpTransactionalEpoch
+- testBumpTransactionalEpochWithTV2Disabled
+- testBumpTransactionalEpochWithTV2Enabled
 - testCommitTransactionTimeout
 - testConsecutivelyRunInitTransactions
 - testDelayedFetchIncludesAbortedTransaction

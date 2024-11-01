@@ -2586,6 +2586,7 @@ org.apache.kafka.clients.producer.internals.TransactionManagerTest:
 - testDuplicateSequenceAfterProducerReset
 - testEndTxnNotSentIfIncompleteBatches
 - testEpochBumpAfterLastInflightBatchFails
+- testEpochUpdateAfterBumpFromEndTxnResponseInV2
 - testFailIfNotReadyForSendAfterAbortableError
 - testFailIfNotReadyForSendAfterFatalError
 - testFailIfNotReadyForSendIdempotentProducer
@@ -2643,6 +2644,7 @@ org.apache.kafka.clients.producer.internals.TransactionManagerTest:
 - testProducerFencedExceptionInInitProducerId
 - testProducerFencedInAddOffSetsToTxn
 - testProducerFencedInAddPartitionToTxn
+- testProducerIdAndEpochUpdateAfterOverflowFromEndTxnResponseInV2
 - testProducerIdReset
 - testRaiseErrorWhenNoPartitionsPendingOnDrain
 - testRecoveryFromAbortableErrorProduceRequestInRetry
@@ -3751,6 +3753,7 @@ org.apache.kafka.common.requests.DescribeGroupsRequestTest:
 - testGetErrorDescribedGroupList
 org.apache.kafka.common.requests.EndTxnRequestTest:
 - testConstructor
+- testEndTxnRequestWithParameterizedTransactionsV2
 org.apache.kafka.common.requests.EndTxnResponseTest:
 - testConstructor
 org.apache.kafka.common.requests.EnvelopeRequestTest:
