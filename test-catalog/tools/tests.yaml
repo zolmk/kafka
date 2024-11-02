@@ -151,6 +151,29 @@ org.apache.kafka.tools.GetOffsetShellTest:
 - testTopicPartitionsNotFoundForNonMatchingTopicPartitionPattern
 - testTopicPatternArg
 - testTopicPatternArgWithPartitionsArg
+org.apache.kafka.tools.GroupsCommandTest:
+- testListGroups
+- testListGroupsConsumerFilter
+- testListGroupsEmpty
+- testListGroupsFailsWithException
+- testListGroupsProtocolAndTypeFilter
+- testListGroupsProtocolAndTypeFilterNoMatch
+- testListGroupsProtocolFilter
+- testListGroupsShareFilter
+- testListGroupsTypeFilter
+- testOptionsListConsumerAndProtocolFilterFails
+- testOptionsListConsumerAndShareFilterFails
+- testOptionsListConsumerAndTypeFilterFails
+- testOptionsListConsumerFilterSucceeds
+- testOptionsListInvalidTypeFilterFails
+- testOptionsListProtocolAndTypeFiltersSucceeds
+- testOptionsListProtocolFilterSucceeds
+- testOptionsListShareAndProtocolFilterFails
+- testOptionsListShareAndTypeFilterFails
+- testOptionsListShareFilterSucceeds
+- testOptionsListSucceeds
+- testOptionsListTypeFilterSucceeds
+- testOptionsNoActionFails
 org.apache.kafka.tools.JmxToolTest:
 - allMetrics
 - csvFormat

@@ -176,6 +176,8 @@ org.apache.kafka.clients.admin.EndpointTypeTest:
 - testRoundTripBroker
 - testRoundTripController
 - testUnknown
+org.apache.kafka.clients.admin.GroupListingTest:
+- testSimpleConsumerGroup
 org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testAbortTransaction
 - testAbortTransactionFindLeaderAfterDisconnect
@@ -317,6 +319,12 @@ org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testListConsumerGroupsWithStatesOlderBrokerVersion
 - testListConsumerGroupsWithTypes
 - testListConsumerGroupsWithTypesOlderBrokerVersion
+- testListGroups
+- testListGroupsEmptyGroupType
+- testListGroupsEmptyProtocol
+- testListGroupsMetadataFailure
+- testListGroupsWithTypes
+- testListGroupsWithTypesOlderBrokerVersion
 - testListOffsets
 - testListOffsetsEarliestLocalSpecMinVersion
 - testListOffsetsHandlesFulfillmentTimeouts
