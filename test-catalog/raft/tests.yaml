@@ -478,16 +478,16 @@ org.apache.kafka.raft.UnattachedStateTest:
 - testGrantVote
 - testLeaderEndpoints
 - testUnattachedWithLeader
+org.apache.kafka.raft.UnattachedStateWithVoteTest:
+- testCanGrantVoteWithDirectoryId
+- testCanGrantVoteWithoutDirectoryId
+- testElectionTimeout
+- testLeaderEndpoints
 org.apache.kafka.raft.ValidOffsetAndEpochTest:
 - diverging
 - snapshot
 - testValidWithoutSpecifyingOffsetAndEpoch
 - valid
-org.apache.kafka.raft.VotedStateTest:
-- testCanGrantVoteWithDirectoryId
-- testCanGrantVoteWithoutDirectoryId
-- testElectionTimeout
-- testLeaderEndpoints
 org.apache.kafka.raft.VoterSetTest:
 - testAddVoter
 - testCannotRemoveToEmptyVoterSet
