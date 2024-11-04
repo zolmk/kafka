@@ -679,6 +679,7 @@ org.apache.kafka.coordinator.group.modern.consumer.ConsumerGroupTest:
 - testRemovePartitionEpochs
 - testRemoveStaticMember
 - testStateTransitionMetrics
+- testSubscribedRegularExpressionCount
 - testUpdateInvertedAssignment
 - testUpdateMember
 - testUpdateSubscribedTopicNamesAndSubscriptionType
