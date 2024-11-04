@@ -739,7 +739,11 @@ org.apache.kafka.metadata.bootstrap.BootstrapDirectoryTest:
 - testReadFromConfigurationWithAncientVersion
 - testReadFromEmptyConfiguration
 org.apache.kafka.metadata.bootstrap.BootstrapMetadataTest:
-- testCopyWithOnlyVersion
+- testCopyWithModifiedFeatureRecord
+- testCopyWithNewFeatureRecord
+- testFeatureLevelForFeature
+- testFeatureLevelForFeatureThatIsNotSet
+- testFeatureLevelForMetadataVersion
 - testFromRecordsList
 - testFromRecordsListWithOldMetadataVersion
 - testFromRecordsListWithoutMetadataVersion

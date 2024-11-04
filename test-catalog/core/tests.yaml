@@ -3489,6 +3489,11 @@ kafka.server.ProduceRequestTest:
 - testZSTDProduceRequest
 kafka.server.RaftClusterSnapshotTest:
 - testSnapshotsGenerated
+kafka.server.ReconfigurableQuorumIntegrationTest:
+- testCreateAndDestroyNonReconfigurableCluster
+- testCreateAndDestroyReconfigurableCluster
+- testRemoveAndAddSameController
+- testRemoveController
 kafka.server.RemoteLeaderEndPointTest:
 - testBrokerEpochSupplier
 - testFetchEarliestLocalOffset
