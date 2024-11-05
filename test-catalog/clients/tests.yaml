@@ -297,6 +297,7 @@ org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testElectLeaders
 - testEqualsOfClientQuotaFilterComponent
 - testExplicitlyEnableJmxReporter
+- testExplicitlyEnableTelemetryReporter
 - testFenceProducers
 - testGenerateClientId
 - testGetOrCreateListValue
@@ -367,6 +368,7 @@ org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testRequestTimeoutExceedingDefaultApiTimeout
 - testRetryDescribeTransactionsAfterNotCoordinatorError
 - testSuccessfulRetryAfterRequestTimeout
+- testTelemetryReporterIsDisabledByDefault
 - testTimeoutWithoutMetadata
 - testUnreachableBootstrapServer
 - testUnregisterBrokerFailure
