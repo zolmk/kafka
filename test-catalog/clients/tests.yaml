@@ -1949,10 +1949,12 @@ org.apache.kafka.clients.consumer.internals.ShareCompletedFetchTest:
 org.apache.kafka.clients.consumer.internals.ShareConsumeRequestManagerTest:
 - testAcknowledgeOnClose
 - testAcknowledgeOnCloseWithPendingCommitAsync
+- testAcknowledgeOnCloseWithPendingCommitSync
 - testBatchingAcknowledgeRequestStates
 - testCallbackHandlerConfig
 - testCloseShouldBeIdempotent
 - testCommitAsync
+- testCommitAsyncWithSubscriptionChange
 - testCommitSync
 - testCorruptMessageError
 - testFetchDisconnected
@@ -1970,6 +1972,7 @@ org.apache.kafka.clients.consumer.internals.ShareConsumeRequestManagerTest:
 - testPendingCommitAsyncBeforeCommitSync
 - testRetryAcknowledgements
 - testRetryAcknowledgementsWithLeaderChange
+- testShareFetchWithSubscriptionChange
 - testUnauthorizedTopic
 - testUnknownTopicIdError
 - testWhenFetchResponseReturnsWithALeadershipChangeErrorAndNewLeaderInformation

@@ -4015,6 +4015,7 @@ kafka.test.api.ShareConsumerTest:
 - testAcknowledgementCommitCallbackInvalidRecordStateException
 - testAcknowledgementCommitCallbackOnClose
 - testAcknowledgementCommitCallbackSuccessfulAcknowledgement
+- testAcknowledgementSentOnSubscriptionChange
 - testAcquisitionLockTimeoutOnConsumer
 - testConsumerCloseInGroupSequential
 - testControlRecordsSkipped
