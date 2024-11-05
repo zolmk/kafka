@@ -3187,6 +3187,7 @@ kafka.server.KafkaApisTest:
 - testUpdateMetadataRequestWithStaleBrokerEpochIsRejected
 - testWriteShareGroupStateAuthorizationFailed
 - testWriteShareGroupStateSuccess
+- testWriteTxnMarkersShouldAllBeIncludedInTheResponse
 kafka.server.KafkaConfigTest:
 - testAcceptsLargeNodeIdForRaftBasedCase
 - testAcceptsLargeNodeIdForZkBasedCaseWithAutoGenDisabled
