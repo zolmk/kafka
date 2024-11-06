@@ -249,6 +249,8 @@ org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testDescribeAcls
 - testDescribeBrokerAndLogConfigs
 - testDescribeBrokerConfigs
+- testDescribeClassicGroups
+- testDescribeClassicGroupsWithAuthorizedOperationsOmitted
 - testDescribeClientMetricsConfigs
 - testDescribeClientQuotas
 - testDescribeCluster
@@ -273,6 +275,7 @@ org.apache.kafka.clients.admin.KafkaAdminClientTest:
 - testDescribeMetadataQuorumFailure
 - testDescribeMetadataQuorumRetriableError
 - testDescribeMetadataQuorumSuccess
+- testDescribeMultipleClassicGroups
 - testDescribeMultipleConsumerGroups
 - testDescribeMultipleShareGroups
 - testDescribeNonConsumerGroups
