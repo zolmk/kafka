@@ -119,6 +119,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -571,7 +572,7 @@ public class ReplicationControlManagerTest {
         ControllerRequestContext requestContext = anonymousContextFor(ApiKeys.CREATE_TOPICS);
         PolicyViolationException error = assertThrows(
                 PolicyViolationException.class,
-                () -> replicationControl.createTopics(requestContext, request, Set.of("foo", "bar", "baz")));
+                () -> replicationControl.createTopics(requestContext, request, Stream.of("foo", "bar", "baz").collect(Collectors.toSet())));
         assertEquals(error.getMessage(), "Excessively large number of partitions per request.");
     }
 
