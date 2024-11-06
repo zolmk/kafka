@@ -21,16 +21,13 @@ import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopicCon
 import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopicConfigCollection;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue;
-import org.apache.kafka.image.MetadataImage;
-import org.apache.kafka.image.TopicImage;
-
+import org.apache.kafka.coordinator.group.streams.TopicMetadata;
 import org.slf4j.Logger;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -41,7 +38,7 @@ import java.util.stream.Stream;
 public class InternalTopicManager {
 
     public static Map<String, CreatableTopic> missingTopics(Map<String, ConfiguredSubtopology> subtopologyMap,
-                                                            MetadataImage metadataImage) {
+                                                            Map<String, TopicMetadata> topicMetadata) {
 
         final Map<String, CreatableTopic> topicsToCreate = new HashMap<>();
         for (ConfiguredSubtopology subtopology : subtopologyMap.values()) {
@@ -50,29 +47,27 @@ public class InternalTopicManager {
             subtopology.stateChangelogTopics().values()
                 .forEach(x -> topicsToCreate.put(x.name(), toCreatableTopic(x)));
         }
-        // TODO: Validate if existing topics are compatible with the new topics
-        for (String topic : metadataImage.topics().topicsByName().keySet()) {
+        // TODO: Validate if existing topics are compatible with the required topics
+        for (String topic : topicMetadata.keySet()) {
             topicsToCreate.remove(topic);
         }
         return topicsToCreate;
     }
 
-
     public static Map<String, ConfiguredSubtopology> configureTopics(LogContext logContext,
-                                                                     List<StreamsGroupTopologyValue.Subtopology> subtopologyList,
-                                                                     MetadataImage metadataImage) {
-
+                                                                     Collection<StreamsGroupTopologyValue.Subtopology> subtopologies,
+                                                                     Map<String, TopicMetadata> topicMetadata) {
         final Logger log = logContext.logger(InternalTopicManager.class);
 
         final Map<String, ConfiguredSubtopology> configuredSubtopologies =
-            subtopologyList.stream()
+            subtopologies.stream()
                 .collect(Collectors.toMap(
                     StreamsGroupTopologyValue.Subtopology::subtopologyId,
                     InternalTopicManager::fromPersistedSubtopology)
                 );
 
         final Map<String, Collection<Set<String>>> copartitionGroupsBySubtopology =
-            subtopologyList.stream()
+            subtopologies.stream()
                 .collect(Collectors.toMap(
                     StreamsGroupTopologyValue.Subtopology::subtopologyId,
                     InternalTopicManager::copartitionGroupsFromPersistedSubtopology)
@@ -87,7 +82,7 @@ public class InternalTopicManager {
             ).collect(Collectors.toMap(ConfiguredInternalTopic::name, x -> x));
 
         final Function<String, Integer> topicPartitionCountProvider =
-            topic -> getPartitionCount(metadataImage, topic, configuredInternalTopics);
+            topic -> getPartitionCount(topicMetadata, topic, configuredInternalTopics);
 
         configureRepartitionTopics(logContext, configuredSubtopologies, topicPartitionCountProvider);
         enforceCopartitioning(logContext, configuredSubtopologies, copartitionGroupsBySubtopology, topicPartitionCountProvider, log);
@@ -141,18 +136,18 @@ public class InternalTopicManager {
         changelogTopics.setup();
     }
 
-    private static Integer getPartitionCount(MetadataImage metadataImage,
+    private static Integer getPartitionCount(Map<String, TopicMetadata> topicMetadata,
                                              String topic,
                                              Map<String, ConfiguredInternalTopic> configuredInternalTopics) {
-        final TopicImage topicImage = metadataImage.topics().getTopic(topic);
-        if (topicImage == null) {
+        final TopicMetadata metadata = topicMetadata.get(topic);
+        if (metadata == null) {
             if (configuredInternalTopics.containsKey(topic) && configuredInternalTopics.get(topic).numberOfPartitions().isPresent()) {
                 return configuredInternalTopics.get(topic).numberOfPartitions().get();
             } else {
                 return null;
             }
         } else {
-            return topicImage.partitions().size();
+            return metadata.numPartitions();
         }
     }
 

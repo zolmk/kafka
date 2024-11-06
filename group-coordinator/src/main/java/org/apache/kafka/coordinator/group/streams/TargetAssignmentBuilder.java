@@ -175,13 +175,13 @@ public class TargetAssignmentBuilder {
     /**
      * Adds the subscription metadata to use.
      *
-     * @param subscriptionMetadata The subscription metadata.
+     * @param partitionMetadata The subscription metadata.
      * @return This object.
      */
-    public TargetAssignmentBuilder withSubscriptionMetadata(
-        Map<String, org.apache.kafka.coordinator.group.streams.TopicMetadata> subscriptionMetadata
+    public TargetAssignmentBuilder withPartitionMetadata(
+        Map<String, org.apache.kafka.coordinator.group.streams.TopicMetadata> partitionMetadata
     ) {
-        this.subscriptionMetadata = subscriptionMetadata;
+        this.subscriptionMetadata = partitionMetadata;
         return this;
     }
 

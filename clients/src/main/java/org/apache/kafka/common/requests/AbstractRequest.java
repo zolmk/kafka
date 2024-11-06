@@ -352,8 +352,6 @@ public abstract class AbstractRequest implements AbstractRequestResponse {
                 return ReadShareGroupStateSummaryRequest.parse(buffer, apiVersion);
             case STREAMS_GROUP_HEARTBEAT:
                 return StreamsGroupHeartbeatRequest.parse(buffer, apiVersion);
-            case STREAMS_GROUP_INITIALIZE:
-                return StreamsGroupInitializeRequest.parse(buffer, apiVersion);
             case STREAMS_GROUP_DESCRIBE:
                 return StreamsGroupDescribeRequest.parse(buffer, apiVersion);
             default:

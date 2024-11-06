@@ -14,13 +14,14 @@
 // limitations under the License.
 
 {
-  "apiKey": 89,
+  "apiKey": 88,
   "type": "response",
   "name": "StreamsGroupHeartbeatResponse",
   "validVersions": "0",
   "flexibleVersions": "0+",
   // Supported errors:
   // - GROUP_AUTHORIZATION_FAILED (version 0+)
+  // - GROUP_ID_NOT_FOUND (version 0+)
   // - NOT_COORDINATOR (version 0+)
   // - COORDINATOR_NOT_AVAILABLE (version 0+)
   // - COORDINATOR_LOAD_IN_PROGRESS (version 0+)
@@ -29,6 +30,11 @@
   // - FENCED_MEMBER_EPOCH (version 0+)
   // - UNRELEASED_INSTANCE_ID (version 0+)
   // - GROUP_MAX_SIZE_REACHED (version 0+)
+  // - TOPIC_AUTHORIZATION_FAILED (version 0+)
+  // - CLUSTER_AUTHORIZATION_FAILED (version 0+)
+  // - STREAMS_INVALID_TOPOLOGY (version 0+)
+  // - STREAMS_MISSING_SOURCE_TOPICS (version 0+)
+  // - STREAMS_INCONSISTENT_INTERNAL_TOPICS (version 0+)
   "fields": [
     // Same as consumer group heart beat
     { "name": "ThrottleTimeMs", "type": "int32", "versions": "0+",
@@ -46,13 +52,12 @@
     { "name": "AcceptableRecoveryLag", "type": "int32", "versions": "0+",
       "about": "The maximal lag a warm-up task can have to be considered caught-up." },
     { "name": "TaskOffsetIntervalMs", "type": "int32", "versions": "0+",
-      "about": "The interval in which the changelog task offsets on a client are updated on the broker. The offsets are sent with the next heartbeat after this time has passed." },
+      "about": "The interval in which the task changelog offsets on a client are updated on the broker. The offsets are sent with the next heartbeat after this time has passed." },
 
     // Topology updating
-    { "name": "ShouldInitializeTopology", "type":  "bool", "versions":  "0+", "default": false,
-      "about": "true if this streams application should initialize the topology on the broker" },
     { "name": "GroupTopologyId", "type": "string", "versions": "0+", "nullableVersions": "0+", "default": null,
-      "about": "The current ID of the topology for the group. Null if unchanged since last heartbeat, empty if group is unitialized." },
+      "about": "The current ID of the topology for the group. Null if unchanged since last heartbeat." },
+
 
     { "name": "Status", "type":  "[]Status", "versions":  "0+",  "nullableVersions": "0+", "default": "null",
       "about": "Indicate zero or more status for the group.  Null if unchanged since last heartbeat." },

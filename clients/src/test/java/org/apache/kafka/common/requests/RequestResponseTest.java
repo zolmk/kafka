@@ -238,8 +238,6 @@ import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
-import org.apache.kafka.common.message.StreamsGroupInitializeResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData.SyncGroupRequestAssignment;
 import org.apache.kafka.common.message.SyncGroupResponseData;
@@ -1129,7 +1127,6 @@ public class RequestResponseTest {
             case DELETE_SHARE_GROUP_STATE: return createDeleteShareGroupStateRequest(version);
             case READ_SHARE_GROUP_STATE_SUMMARY: return createReadShareGroupStateSummaryRequest(version);
             case STREAMS_GROUP_HEARTBEAT: return createStreamsGroupHeartbeatRequest(version);
-            case STREAMS_GROUP_INITIALIZE: return createStreamsGroupInitializeRequest(version);
             case STREAMS_GROUP_DESCRIBE: return createStreamsGroupDescribeRequest(version);
             default: throw new IllegalArgumentException("Unknown API key " + apikey);
         }
@@ -1226,7 +1223,6 @@ public class RequestResponseTest {
             case DELETE_SHARE_GROUP_STATE: return createDeleteShareGroupStateResponse();
             case READ_SHARE_GROUP_STATE_SUMMARY: return createReadShareGroupStateSummaryResponse();
             case STREAMS_GROUP_HEARTBEAT: return createStreamsGroupHeartbeatResponse();
-            case STREAMS_GROUP_INITIALIZE: return createStreamsGroupInitializeResponse();
             case STREAMS_GROUP_DESCRIBE: return createStreamsGroupDescribeResponse();
             default: throw new IllegalArgumentException("Unknown API key " + apikey);
         }
@@ -4030,10 +4026,6 @@ public class RequestResponseTest {
             .setIncludeAuthorizedOperations(false)).build(version);
     }
 
-    private AbstractRequest createStreamsGroupInitializeRequest(final short version) {
-        return new StreamsGroupInitializeRequest.Builder(new StreamsGroupInitializeRequestData()).build(version);
-    }
-
     private AbstractRequest createStreamsGroupHeartbeatRequest(final short version) {
         return new StreamsGroupHeartbeatRequest.Builder(new StreamsGroupHeartbeatRequestData()).build(version);
     }
@@ -4053,10 +4045,6 @@ public class RequestResponseTest {
             ))
             .setThrottleTimeMs(1000);
         return new StreamsGroupDescribeResponse(data);
-    }
-
-    private AbstractResponse createStreamsGroupInitializeResponse() {
-        return new StreamsGroupInitializeResponse(new StreamsGroupInitializeResponseData());
     }
 
     private AbstractResponse createStreamsGroupHeartbeatResponse() {

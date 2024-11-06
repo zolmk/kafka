@@ -23,14 +23,12 @@ import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopicCon
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue.Subtopology;
-import org.apache.kafka.image.MetadataImage;
-import org.apache.kafka.image.TopicImage;
-import org.apache.kafka.image.TopicsImage;
-import org.apache.kafka.server.immutable.ImmutableMap;
+import org.apache.kafka.coordinator.group.streams.TopicMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,34 +37,19 @@ import java.util.Set;
 import static org.apache.kafka.common.utils.Utils.mkEntry;
 import static org.apache.kafka.common.utils.Utils.mkMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class InternalTopicManagerTest {
 
     @Test
     void testMissingTopics() {
-        MetadataImage metadataImage = mock(MetadataImage.class);
-        TopicsImage topicsImage = mock(TopicsImage.class);
-        when(metadataImage.topics()).thenReturn(topicsImage);
-        final TopicImage sourceTopic1 =
-            new TopicImage("source_topic1", Uuid.randomUuid(), mkMap(mkEntry(0, null), mkEntry(1, null)));
-        final TopicImage sourceTopic2 =
-            new TopicImage("source_topic2", Uuid.randomUuid(), mkMap(mkEntry(0, null), mkEntry(1, null)));
-        final TopicImage stateChangelogTopic2 = new TopicImage("state_changelog_topic2", Uuid.randomUuid(),
-            mkMap(mkEntry(0, null), mkEntry(1, null)));
-        when(topicsImage.topicsByName()).thenReturn(
-            ImmutableMap.singleton("source_topic1", sourceTopic1)
-                .updated("source_topic2", sourceTopic2)
-                .updated("state_changelog_topic2", stateChangelogTopic2)
-        );
-        when(topicsImage.getTopic(eq("source_topic1"))).thenReturn(sourceTopic1);
-        when(topicsImage.getTopic(eq("source_topic2"))).thenReturn(sourceTopic2);
-        when(topicsImage.getTopic(eq("state_changelog_topic2"))).thenReturn(stateChangelogTopic2);
+        Map<String, TopicMetadata> topicMetadata = new HashMap<>();
+        topicMetadata.put("source_topic1", new TopicMetadata(Uuid.randomUuid(), "source_topic1", 2, Collections.emptyMap()));
+        topicMetadata.put("source_topic2", new TopicMetadata(Uuid.randomUuid(), "source_topic2", 2, Collections.emptyMap()));
+        topicMetadata.put("state_changelog_topic2",
+            new TopicMetadata(Uuid.randomUuid(), "state_changelog_topic2", 2, Collections.emptyMap()));
         Map<String, ConfiguredSubtopology> subtopologyMap = makeExpectedConfiguredTopology();
 
-        Map<String, CreatableTopic> missingTopics = InternalTopicManager.missingTopics(subtopologyMap, metadataImage);
+        Map<String, CreatableTopic> missingTopics = InternalTopicManager.missingTopics(subtopologyMap, topicMetadata);
 
         assertEquals(2, missingTopics.size());
         assertEquals(
@@ -90,17 +73,13 @@ class InternalTopicManagerTest {
 
     @Test
     void testConfigureTopics() {
-        MetadataImage metadataImage = mock(MetadataImage.class);
-        TopicsImage topicsImage = mock(TopicsImage.class);
-        when(metadataImage.topics()).thenReturn(topicsImage);
-        when(topicsImage.getTopic(eq("source_topic1"))).thenReturn(
-            new TopicImage("source_topic1", Uuid.randomUuid(), mkMap(mkEntry(0, null), mkEntry(1, null))));
-        when(topicsImage.getTopic(eq("source_topic2"))).thenReturn(
-            new TopicImage("source_topic2", Uuid.randomUuid(), mkMap(mkEntry(0, null), mkEntry(1, null))));
+        Map<String, TopicMetadata> topicMetadata = new HashMap<>();
+        topicMetadata.put("source_topic1", new TopicMetadata(Uuid.randomUuid(), "source_topic1", 2, Collections.emptyMap()));
+        topicMetadata.put("source_topic2", new TopicMetadata(Uuid.randomUuid(), "source_topic2", 2, Collections.emptyMap()));
         List<Subtopology> subtopologyList = makeTestTopology();
 
         Map<String, ConfiguredSubtopology> configuredSubtopologies =
-            InternalTopicManager.configureTopics(new LogContext(), subtopologyList, metadataImage);
+            InternalTopicManager.configureTopics(new LogContext(), subtopologyList, topicMetadata);
 
         Map<String, ConfiguredSubtopology> expectedConfiguredSubtopologyMap = makeExpectedConfiguredTopology();
         assertEquals(expectedConfiguredSubtopologyMap, configuredSubtopologies);

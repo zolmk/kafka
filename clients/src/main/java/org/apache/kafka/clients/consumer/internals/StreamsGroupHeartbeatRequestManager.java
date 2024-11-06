@@ -29,6 +29,7 @@ import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData.TopicPartitions;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData.CopartitionGroup;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData.TaskIds;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData.Endpoint;
@@ -44,13 +45,16 @@ import org.apache.kafka.common.utils.Timer;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class StreamsGroupHeartbeatRequestManager implements RequestManager {
@@ -66,8 +70,6 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
     private final StreamsGroupHeartbeatRequestManager.HeartbeatState heartbeatState;
 
     private final ConsumerMembershipManager membershipManager;
-
-    private final StreamsGroupInitializeRequestManager streamsGroupInitializeRequestManager;
 
     private final BackgroundEventHandler backgroundEventHandler;
 
@@ -86,7 +88,6 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
         final Time time,
         final ConsumerConfig config,
         final CoordinatorRequestManager coordinatorRequestManager,
-        final StreamsGroupInitializeRequestManager streamsGroupInitializeRequestManager,
         final ConsumerMembershipManager membershipManager,
         final BackgroundEventHandler backgroundEventHandler,
         final Metrics metrics,
@@ -96,7 +97,6 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
         this.coordinatorRequestManager = coordinatorRequestManager;
         this.logger = logContext.logger(getClass());
         this.membershipManager = membershipManager;
-        this.streamsGroupInitializeRequestManager = streamsGroupInitializeRequestManager;
         this.backgroundEventHandler = backgroundEventHandler;
         this.maxPollIntervalMs = config.getInt(CommonClientConfigs.MAX_POLL_INTERVAL_MS_CONFIG);
         long retryBackoffMs = config.getLong(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG);
@@ -248,9 +248,6 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
         heartbeatRequestState.onSuccessfulAttempt(currentTimeMs);
         heartbeatRequestState.resetTimer();
 
-        if (data.shouldInitializeTopology()) {
-            streamsGroupInitializeRequestManager.initialize();
-        }
         if (data.partitionsByUserEndpoint() != null) {
             streamsInterface.partitionsByHost.set(convertHostInfoMap(data));
         }
@@ -286,7 +283,8 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
         membershipManager.onHeartbeatSuccess(new ConsumerGroupHeartbeatResponse(cgData));
     }
 
-    private void setTargetAssignmentForConsumerGroup(final StreamsGroupHeartbeatResponseData data, final ConsumerGroupHeartbeatResponseData cgData) {
+    private void setTargetAssignmentForConsumerGroup(final StreamsGroupHeartbeatResponseData data,
+                                                     final ConsumerGroupHeartbeatResponseData cgData) {
         Map<String, TopicPartitions> tps = new HashMap<>();
         data.activeTasks().forEach(taskId -> Stream.concat(
                 streamsInterface.subtopologyMap().get(taskId.subtopologyId()).sourceTopics.stream(),
@@ -321,7 +319,8 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
         streamsInterface.targetAssignment.set(targetAssignment);
     }
 
-    private static Map<StreamsAssignmentInterface.HostInfo, List<TopicPartition>> convertHostInfoMap(final StreamsGroupHeartbeatResponseData data) {
+    private static Map<StreamsAssignmentInterface.HostInfo, List<TopicPartition>> convertHostInfoMap(
+        final StreamsGroupHeartbeatResponseData data) {
         Map<StreamsAssignmentInterface.HostInfo, List<TopicPartition>> partitionsByHost = new HashMap<>();
         data.partitionsByUserEndpoint().forEach(endpoint -> {
             List<TopicPartition> topicPartitions = endpoint.partitions().stream()
@@ -470,7 +469,8 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
             final long retryBackoffMs,
             final long retryBackoffMaxMs,
             final double jitter) {
-            super(logContext, StreamsGroupHeartbeatRequestManager.HeartbeatRequestState.class.getName(), retryBackoffMs, 2, retryBackoffMaxMs,
+            super(logContext, StreamsGroupHeartbeatRequestManager.HeartbeatRequestState.class.getName(), retryBackoffMs, 2,
+                retryBackoffMaxMs,
                 jitter);
             this.heartbeatIntervalMs = heartbeatIntervalMs;
             this.heartbeatTimer = time.timer(heartbeatIntervalMs);
@@ -574,6 +574,8 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
 
             // Immutable -- only sent when joining
             if (joining) {
+                // Topology -- sent when joining
+                data.setTopology(getTopologyFromStreams());
                 data.setProcessId(streamsInterface.processId().toString());
                 data.setActiveTasks(Collections.emptyList());
                 data.setStandbyTasks(Collections.emptyList());
@@ -625,6 +627,100 @@ public class StreamsGroupHeartbeatRequestManager implements RequestManager {
                     return ids;
                 })
                 .collect(Collectors.toList());
+        }
+
+        private List<StreamsGroupHeartbeatRequestData.Subtopology> getTopologyFromStreams() {
+            final Map<String, StreamsAssignmentInterface.Subtopology> subTopologyMap = streamsInterface.subtopologyMap();
+            final List<StreamsGroupHeartbeatRequestData.Subtopology> subtopologies = new ArrayList<>(subTopologyMap.size());
+            for (final Map.Entry<String, StreamsAssignmentInterface.Subtopology> subtopology : subTopologyMap.entrySet()) {
+                subtopologies.add(getSubtopologyFromStreams(subtopology.getKey(), subtopology.getValue()));
+            }
+            subtopologies.sort(Comparator.comparing(StreamsGroupHeartbeatRequestData.Subtopology::subtopologyId));
+            return subtopologies;
+        }
+
+        private static StreamsGroupHeartbeatRequestData.Subtopology getSubtopologyFromStreams(final String subtopologyName,
+                                                                                              final StreamsAssignmentInterface.Subtopology subtopology) {
+            final StreamsGroupHeartbeatRequestData.Subtopology subtopologyData = new StreamsGroupHeartbeatRequestData.Subtopology();
+            subtopologyData.setSubtopologyId(subtopologyName);
+            ArrayList<String> sortedSourceTopics = new ArrayList<>(subtopology.sourceTopics);
+            Collections.sort(sortedSourceTopics);
+            subtopologyData.setSourceTopics(sortedSourceTopics);
+            ArrayList<String> sortedSinkTopics = new ArrayList<>(subtopology.repartitionSinkTopics);
+            Collections.sort(sortedSinkTopics);
+            subtopologyData.setRepartitionSinkTopics(sortedSinkTopics);
+            subtopologyData.setRepartitionSourceTopics(getRepartitionTopicsInfoFromStreams(subtopology));
+            subtopologyData.setStateChangelogTopics(getChangelogTopicsInfoFromStreams(subtopology));
+            subtopologyData.setCopartitionGroups(
+                getCopartitionGroupsFromStreams(subtopology.copartitionGroups, subtopologyData));
+            return subtopologyData;
+        }
+
+        private static List<CopartitionGroup> getCopartitionGroupsFromStreams(final Collection<Set<String>> copartitionGroups,
+                                                                              final StreamsGroupHeartbeatRequestData.Subtopology subtopologyData) {
+
+            final Map<String, Short> sourceTopicsMap =
+                IntStream.range(0, subtopologyData.sourceTopics().size())
+                    .boxed()
+                    .collect(Collectors.toMap(subtopologyData.sourceTopics()::get, Integer::shortValue));
+
+            final Map<String, Short> repartitionSourceTopics =
+                IntStream.range(0, subtopologyData.repartitionSourceTopics().size())
+                    .boxed()
+                    .collect(
+                        Collectors.toMap(x -> subtopologyData.repartitionSourceTopics().get(x).name(),
+                            Integer::shortValue));
+
+            return copartitionGroups.stream()
+                .map(x -> getCopartitionGroupFromStreams(x, sourceTopicsMap, repartitionSourceTopics))
+                .collect(Collectors.toList());
+        }
+
+        private static CopartitionGroup getCopartitionGroupFromStreams(final Set<String> topicNames,
+                                                                       final Map<String, Short> sourceTopicsMap,
+                                                                       final Map<String, Short> repartitionSourceTopics) {
+            CopartitionGroup copartitionGroup = new CopartitionGroup();
+
+            topicNames.forEach(topicName -> {
+                if (sourceTopicsMap.containsKey(topicName)) {
+                    copartitionGroup.sourceTopics().add(sourceTopicsMap.get(topicName));
+                } else if (repartitionSourceTopics.containsKey(topicName)) {
+                    copartitionGroup.repartitionSourceTopics()
+                        .add(repartitionSourceTopics.get(topicName));
+                } else {
+                    throw new IllegalStateException(
+                        "Source topic not found in subtopology: " + topicName);
+                }
+            });
+
+            return copartitionGroup;
+        }
+
+        private static List<StreamsGroupHeartbeatRequestData.TopicInfo> getRepartitionTopicsInfoFromStreams(
+            final StreamsAssignmentInterface.Subtopology subtopologyDataFromStreams) {
+            final List<StreamsGroupHeartbeatRequestData.TopicInfo> repartitionTopicsInfo = new ArrayList<>();
+            for (final Map.Entry<String, StreamsAssignmentInterface.TopicInfo> repartitionTopic : subtopologyDataFromStreams.repartitionSourceTopics.entrySet()) {
+                final StreamsGroupHeartbeatRequestData.TopicInfo repartitionTopicInfo = new StreamsGroupHeartbeatRequestData.TopicInfo();
+                repartitionTopicInfo.setName(repartitionTopic.getKey());
+                repartitionTopic.getValue().numPartitions.ifPresent(repartitionTopicInfo::setPartitions);
+                repartitionTopic.getValue().replicationFactor.ifPresent(repartitionTopicInfo::setReplicationFactor);
+                repartitionTopicsInfo.add(repartitionTopicInfo);
+            }
+            repartitionTopicsInfo.sort(Comparator.comparing(StreamsGroupHeartbeatRequestData.TopicInfo::name));
+            return repartitionTopicsInfo;
+        }
+
+        private static List<StreamsGroupHeartbeatRequestData.TopicInfo> getChangelogTopicsInfoFromStreams(
+            final StreamsAssignmentInterface.Subtopology subtopologyDataFromStreams) {
+            final List<StreamsGroupHeartbeatRequestData.TopicInfo> changelogTopicsInfo = new ArrayList<>();
+            for (final Map.Entry<String, StreamsAssignmentInterface.TopicInfo> changelogTopic : subtopologyDataFromStreams.stateChangelogTopics.entrySet()) {
+                final StreamsGroupHeartbeatRequestData.TopicInfo changelogTopicInfo = new StreamsGroupHeartbeatRequestData.TopicInfo();
+                changelogTopicInfo.setName(changelogTopic.getKey());
+                changelogTopic.getValue().replicationFactor.ifPresent(changelogTopicInfo::setReplicationFactor);
+                changelogTopicsInfo.add(changelogTopicInfo);
+            }
+            changelogTopicsInfo.sort(Comparator.comparing(StreamsGroupHeartbeatRequestData.TopicInfo::name));
+            return changelogTopicsInfo;
         }
 
         // Fields of StreamsGroupHeartbeatRequest sent in the most recent request

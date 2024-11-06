@@ -28,8 +28,8 @@ import org.apache.kafka.coordinator.group.OffsetAndMetadata;
 import org.apache.kafka.coordinator.group.OffsetExpirationCondition;
 import org.apache.kafka.coordinator.group.OffsetExpirationConditionImpl;
 import org.apache.kafka.coordinator.group.metrics.GroupCoordinatorMetricsShard;
+import org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState;
 import org.apache.kafka.timeline.SnapshotRegistry;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 
@@ -53,9 +53,12 @@ import static org.mockito.Mockito.mock;
 
 public class StreamsGroupTest {
 
+    private static final LogContext LOG_CONTEXT = new LogContext();
+
     private StreamsGroup createStreamsGroup(String groupId) {
-        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(new LogContext());
+        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(LOG_CONTEXT);
         return new StreamsGroup(
+            LOG_CONTEXT,
             snapshotRegistry,
             groupId,
             mock(GroupCoordinatorMetricsShard.class)
@@ -421,7 +424,7 @@ public class StreamsGroupTest {
     @Test
     public void testGroupState() {
         StreamsGroup streamsGroup = createStreamsGroup("foo");
-        assertEquals(StreamsGroup.StreamsGroupState.INITIALIZING, streamsGroup.state());
+        assertEquals(StreamsGroupState.EMPTY, streamsGroup.state());
 
         StreamsGroupMember member1 = new StreamsGroupMember.Builder("member1")
             .setState(MemberState.STABLE)
@@ -433,7 +436,7 @@ public class StreamsGroupTest {
         streamsGroup.setGroupEpoch(1);
 
         assertEquals(MemberState.STABLE, member1.state());
-        assertEquals(StreamsGroup.StreamsGroupState.INITIALIZING, streamsGroup.state());
+        assertEquals(StreamsGroup.StreamsGroupState.NOT_READY, streamsGroup.state());
 
         streamsGroup.setTopology(new StreamsTopology("topology-id", Collections.emptyMap()));
 
@@ -498,9 +501,9 @@ public class StreamsGroupTest {
 
     @Test
     public void testUpdateInvertedAssignment() {
-        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(new LogContext());
+        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(LOG_CONTEXT);
         GroupCoordinatorMetricsShard metricsShard = mock(GroupCoordinatorMetricsShard.class);
-        StreamsGroup streamsGroup = new StreamsGroup(snapshotRegistry, "test-group", metricsShard);
+        StreamsGroup streamsGroup = new StreamsGroup(LOG_CONTEXT, snapshotRegistry, "test-group", metricsShard);
         String subtopologyId = "foo-sub";
         String memberId1 = "member1";
         String memberId2 = "member2";
@@ -543,7 +546,7 @@ public class StreamsGroupTest {
             emptyMap(),
             emptyMap()
         );
-        streamsGroup.updateTargetAssignment(memberId2, newAssignment);
+        streamsGroup.updateTargetAssignment(memberId2, newAssignment2);
 
         // Verify that partition 1 is assigned to member2
         assertEquals(
@@ -664,8 +667,9 @@ public class StreamsGroupTest {
 
     @Test
     public void testValidateOffsetFetch() {
-        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(new LogContext());
+        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(LOG_CONTEXT);
         StreamsGroup group = new StreamsGroup(
+            LOG_CONTEXT,
             snapshotRegistry,
             "group-foo",
             mock(GroupCoordinatorMetricsShard.class)
@@ -698,7 +702,7 @@ public class StreamsGroupTest {
     public void testValidateDeleteGroup() {
         StreamsGroup streamsGroup = createStreamsGroup("foo");
 
-        assertEquals(StreamsGroup.StreamsGroupState.INITIALIZING, streamsGroup.state());
+        assertEquals(StreamsGroupState.EMPTY, streamsGroup.state());
         assertDoesNotThrow(streamsGroup::validateDeleteGroup);
 
         StreamsGroupMember member1 = new StreamsGroupMember.Builder("member1")
@@ -732,7 +736,7 @@ public class StreamsGroupTest {
         long commitTimestamp = 20000L;
         long offsetsRetentionMs = 10000L;
         OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(15000L, OptionalInt.empty(), "", commitTimestamp, OptionalLong.empty());
-        StreamsGroup group = new StreamsGroup(new SnapshotRegistry(new LogContext()), "group-id", mock(GroupCoordinatorMetricsShard.class));
+        StreamsGroup group = new StreamsGroup(LOG_CONTEXT, new SnapshotRegistry(LOG_CONTEXT), "group-id", mock(GroupCoordinatorMetricsShard.class));
 
         Optional<OffsetExpirationCondition> offsetExpirationCondition = group.offsetExpirationCondition();
         assertTrue(offsetExpirationCondition.isPresent());
@@ -743,22 +747,23 @@ public class StreamsGroupTest {
     }
 
     @Test
-    public void testIsInStatesCaseInsensitive() {
-        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(new LogContext());
+    public void testIsInStatesCaseInsensitiveAndUnderscored() {
+        SnapshotRegistry snapshotRegistry = new SnapshotRegistry(LOG_CONTEXT);
         GroupCoordinatorMetricsShard metricsShard = new GroupCoordinatorMetricsShard(
             snapshotRegistry,
             emptyMap(),
             new TopicPartition("__consumer_offsets", 0)
         );
-        StreamsGroup group = new StreamsGroup(snapshotRegistry, "group-foo", metricsShard);
+        StreamsGroup group = new StreamsGroup(LOG_CONTEXT, snapshotRegistry, "group-foo", metricsShard);
         snapshotRegistry.idempotentCreateSnapshot(0);
-        assertTrue(group.isInStates(Collections.singleton("initializing"), 0));
-        assertFalse(group.isInStates(Collections.singleton("Initializing"), 0));
+        assertTrue(group.isInStates(Collections.singleton("empty"), 0));
+        assertFalse(group.isInStates(Collections.singleton("Empty"), 0));
 
-        group.setTopology(new StreamsTopology("topology-id", Collections.emptyMap()));
+        group.updateMember(new StreamsGroupMember.Builder("member1")
+            .build());
         snapshotRegistry.idempotentCreateSnapshot(1);
-        assertTrue(group.isInStates(Collections.singleton("initializing"), 0));
-        assertTrue(group.isInStates(Collections.singleton("empty"), 1));
-        assertFalse(group.isInStates(Collections.singleton("initializing"), 1));
+        assertTrue(group.isInStates(Collections.singleton("empty"), 0));
+        assertTrue(group.isInStates(Collections.singleton("not_ready"), 1));
+        assertFalse(group.isInStates(Collections.singleton("empty"), 1));
     }
 }

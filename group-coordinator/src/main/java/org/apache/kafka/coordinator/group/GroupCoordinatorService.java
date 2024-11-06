@@ -47,8 +47,6 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
-import org.apache.kafka.common.message.StreamsGroupInitializeResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
@@ -78,7 +76,7 @@ import org.apache.kafka.coordinator.common.runtime.CoordinatorShardBuilderSuppli
 import org.apache.kafka.coordinator.common.runtime.MultiThreadedEventProcessor;
 import org.apache.kafka.coordinator.common.runtime.PartitionWriter;
 import org.apache.kafka.coordinator.group.metrics.GroupCoordinatorMetrics;
-import org.apache.kafka.coordinator.group.streams.StreamsGroupInitializeResult;
+import org.apache.kafka.coordinator.group.streams.StreamsGroupHeartbeatResult;
 import org.apache.kafka.image.MetadataDelta;
 import org.apache.kafka.image.MetadataImage;
 import org.apache.kafka.server.record.BrokerCompressionType;
@@ -350,47 +348,17 @@ public class GroupCoordinatorService implements GroupCoordinator {
     }
 
     /**
-     * See {@link GroupCoordinator#streamsGroupInitialize(RequestContext, org.apache.kafka.common.message.StreamsGroupInitializeRequestData)}.
-     */
-    @Override
-    public CompletableFuture<StreamsGroupInitializeResult> streamsGroupInitialize(
-        RequestContext context,
-        StreamsGroupInitializeRequestData request
-    ) {
-        if (!isActive.get()) {
-            return CompletableFuture.completedFuture(new StreamsGroupInitializeResult(new StreamsGroupInitializeResponseData()
-                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code())
-            ));
-        }
-
-        return runtime.scheduleWriteOperation(
-            "streams-group-initialize",
-            topicPartitionFor(request.groupId()),
-            Duration.ofMillis(config.offsetCommitTimeoutMs()),
-            coordinator -> coordinator.streamsGroupInitialize(context, request)
-        ).exceptionally(exception -> handleOperationException(
-            "streams-group-initialize",
-            request,
-            exception,
-            (error, message) -> new StreamsGroupInitializeResult(new StreamsGroupInitializeResponseData()
-                .setErrorCode(error.code())
-                .setErrorMessage(message)),
-            log
-        ));
-    }
-
-    /**
      * See {@link GroupCoordinator#streamsGroupHeartbeat(RequestContext, org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData)}.
      */
     @Override
-    public CompletableFuture<StreamsGroupHeartbeatResponseData> streamsGroupHeartbeat(
+    public CompletableFuture<StreamsGroupHeartbeatResult> streamsGroupHeartbeat(
         RequestContext context,
         StreamsGroupHeartbeatRequestData request
     ) {
         if (!isActive.get()) {
-            return CompletableFuture.completedFuture(new StreamsGroupHeartbeatResponseData()
+            return CompletableFuture.completedFuture(new StreamsGroupHeartbeatResult(new StreamsGroupHeartbeatResponseData()
                 .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code())
-            );
+            ));
         }
 
         return runtime.scheduleWriteOperation(
@@ -402,9 +370,12 @@ public class GroupCoordinatorService implements GroupCoordinator {
             "streams-heartbeat",
             request,
             exception,
-            (error, message) -> new StreamsGroupHeartbeatResponseData()
-                .setErrorCode(error.code())
-                .setErrorMessage(message),
+            (error, message) ->
+                new StreamsGroupHeartbeatResult(
+                    new StreamsGroupHeartbeatResponseData()
+                    .setErrorCode(error.code())
+                    .setErrorMessage(message)
+                ),
             log
         ));
     }

@@ -14,7 +14,7 @@
 // limitations under the License.
 
 {
-  "apiKey": 90,
+  "apiKey": 89,
   "type": "response",
   "name": "StreamsGroupDescribeResponse",
   "validVersions": "0",
@@ -46,7 +46,7 @@
         { "name": "AssignmentEpoch", "type": "int32", "versions": "0+",
           "about": "The assignment epoch." },
         { "name":  "Topology", "type": "[]Subtopology", "versions": "0+", "nullableVersions": "0+", "default": "null",
-          "about": "The sub-topologies of the streams application. Null if uninitialized.",
+          "about": "The resolved sub-topologies of the streams application. This contains the configured sub-topologies, where the number of partitions are set and any regular expressions are resolved to actual topics. Null if the group is uninitialized, source topics are missing or inconsistent.",
           "fields": [
             { "name": "SubtopologyId", "type": "string", "versions": "0+",
               "about": "String to uniquely identify the subtopology. Deterministically generated from the topology." },
@@ -54,8 +54,6 @@
               "about": "The topics the topology reads from." },
             { "name": "RepartitionSinkTopics", "type": "[]string", "versions": "0+",
               "about": "The repartition topics the topology writes to." },
-            { "name": "SourceTopicRegex", "type": "[]string", "versions": "0+",
-              "about": "Regular expressions identifying topics the subtopology reads from." },
             { "name": "StateChangelogTopics", "type": "[]TopicInfo", "versions": "0+",
               "about": "The set of state changelog topics associated with this subtopology. Created automatically." },
             { "name": "RepartitionSourceTopics", "type": "[]TopicInfo", "versions": "0+",

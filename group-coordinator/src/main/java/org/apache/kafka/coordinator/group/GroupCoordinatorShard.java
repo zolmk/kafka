@@ -41,8 +41,6 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
@@ -103,13 +101,12 @@ import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyKey;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue;
 import org.apache.kafka.coordinator.group.metrics.GroupCoordinatorMetrics;
 import org.apache.kafka.coordinator.group.metrics.GroupCoordinatorMetricsShard;
-import org.apache.kafka.coordinator.group.streams.StreamsGroupInitializeResult;
+import org.apache.kafka.coordinator.group.streams.StreamsGroupHeartbeatResult;
 import org.apache.kafka.coordinator.group.taskassignor.StickyTaskAssignor;
 import org.apache.kafka.image.MetadataDelta;
 import org.apache.kafka.image.MetadataImage;
 import org.apache.kafka.server.common.ApiMessageAndVersion;
 import org.apache.kafka.timeline.SnapshotRegistry;
-
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -374,31 +371,15 @@ public class GroupCoordinatorShard implements CoordinatorShard<CoordinatorRecord
     }
 
     /**
-     * Handles a StreamsGroupInitialize request.
-     *
-     * @param context The request context.
-     * @param request The actual StreamsGroupInitialize request.
-     *
-     * @return A Result containing the StreamsGroupInitialize response and
-     *         a list of records to update the state machine.
-     */
-    public CoordinatorResult<StreamsGroupInitializeResult, CoordinatorRecord> streamsGroupInitialize(
-        RequestContext context,
-        StreamsGroupInitializeRequestData request
-    ) {
-        return groupMetadataManager.streamsGroupInitialize(context, request);
-    }
-
-    /**
      * Handles a StreamsGroupHeartbeat request.
      *
      * @param context The request context.
      * @param request The actual StreamsGroupHeartbeat request.
      *
-     * @return A Result containing the StreamsGroupHeartbeat response and
+     * @return A Result containing the StreamsGroupHeartbeat response, a list of internal topics to be created and
      *         a list of records to update the state machine.
      */
-    public CoordinatorResult<StreamsGroupHeartbeatResponseData, CoordinatorRecord> streamsGroupHeartbeat(
+    public CoordinatorResult<StreamsGroupHeartbeatResult, CoordinatorRecord> streamsGroupHeartbeat(
         RequestContext context,
         StreamsGroupHeartbeatRequestData request
     ) {

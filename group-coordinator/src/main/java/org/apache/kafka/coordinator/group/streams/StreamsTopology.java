@@ -16,12 +16,10 @@
  */
 package org.apache.kafka.coordinator.group.streams;
 
-import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue.Subtopology;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue.TopicInfo;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -51,11 +49,17 @@ public class StreamsTopology {
         return subtopologies;
     }
 
-    public Set<String> topicSubscription() {
+    public Set<String> requiredTopics() {
         return subtopologies.values().stream()
-            .flatMap(x -> Stream.concat(x.sourceTopics().stream(), x.repartitionSourceTopics().stream().map(
-                TopicInfo::name))).collect(
-                Collectors.toSet());
+            .flatMap(x ->
+                Stream.concat(
+                    Stream.concat(
+                        x.sourceTopics().stream(),
+                        x.repartitionSourceTopics().stream().map(TopicInfo::name)
+                    ),
+                    x.stateChangelogTopics().stream().map(TopicInfo::name)
+                )
+            ).collect(Collectors.toSet());
     }
 
     public static StreamsTopology fromRecord(StreamsGroupTopologyValue record) {
@@ -88,37 +92,5 @@ public class StreamsTopology {
             "topologyId=" + topologyId +
             ", subtopologies=" + subtopologies +
             '}';
-    }
-
-    public List<StreamsGroupDescribeResponseData.Subtopology> asStreamsGroupDescribeTopology() {
-        return subtopologies.values().stream().map(
-            subtopology -> new StreamsGroupDescribeResponseData.Subtopology()
-                .setSourceTopicRegex(subtopology.sourceTopicRegex())
-                .setSubtopologyId(subtopology.subtopologyId())
-                .setSourceTopics(subtopology.sourceTopics())
-                .setRepartitionSinkTopics(subtopology.repartitionSinkTopics())
-                .setRepartitionSourceTopics(
-                    asStreamsGroupDescribeTopicInfo(subtopology.repartitionSourceTopics()))
-                .setStateChangelogTopics(
-                    asStreamsGroupDescribeTopicInfo(subtopology.stateChangelogTopics()))
-        ).collect(Collectors.toList());
-    }
-
-    private static List<StreamsGroupDescribeResponseData.TopicInfo> asStreamsGroupDescribeTopicInfo(
-        final List<TopicInfo> topicInfos) {
-        return topicInfos.stream().map(x ->
-            new StreamsGroupDescribeResponseData.TopicInfo()
-                .setName(x.name())
-                .setPartitions(x.partitions())
-                .setReplicationFactor(x.replicationFactor())
-                .setTopicConfigs(
-                    x.topicConfigs() != null ?
-                        x.topicConfigs().stream().map(
-                            y -> new StreamsGroupDescribeResponseData.KeyValue()
-                                .setKey(y.key())
-                                .setValue(y.value())
-                        ).collect(Collectors.toList()) : null
-                )
-        ).collect(Collectors.toList());
     }
 }

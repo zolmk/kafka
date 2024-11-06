@@ -26,8 +26,6 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
-import org.apache.kafka.common.message.StreamsGroupInitializeResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -63,7 +61,7 @@ import org.apache.kafka.coordinator.group.generated.ShareGroupMemberMetadataKey;
 import org.apache.kafka.coordinator.group.generated.ShareGroupMemberMetadataValue;
 import org.apache.kafka.coordinator.group.generated.ShareGroupMetadataKey;
 import org.apache.kafka.coordinator.group.generated.ShareGroupMetadataValue;
-import org.apache.kafka.coordinator.group.streams.StreamsGroupInitializeResult;
+import org.apache.kafka.coordinator.group.streams.StreamsGroupHeartbeatResult;
 import org.apache.kafka.image.MetadataImage;
 import org.apache.kafka.server.common.ApiMessageAndVersion;
 
@@ -135,38 +133,6 @@ public class GroupCoordinatorShardTest {
     }
 
     @Test
-    public void testStreamsGroupInitialize() {
-        GroupMetadataManager groupMetadataManager = mock(GroupMetadataManager.class);
-        OffsetMetadataManager offsetMetadataManager = mock(OffsetMetadataManager.class);
-        CoordinatorMetrics coordinatorMetrics = mock(CoordinatorMetrics.class);
-        CoordinatorMetricsShard metricsShard = mock(CoordinatorMetricsShard.class);
-        GroupCoordinatorShard coordinator = new GroupCoordinatorShard(
-            new LogContext(),
-            groupMetadataManager,
-            offsetMetadataManager,
-            Time.SYSTEM,
-            new MockCoordinatorTimer<>(Time.SYSTEM),
-            mock(GroupCoordinatorConfig.class),
-            coordinatorMetrics,
-            metricsShard
-        );
-
-        RequestContext context = requestContext(ApiKeys.STREAMS_GROUP_INITIALIZE);
-        StreamsGroupInitializeRequestData request = new StreamsGroupInitializeRequestData();
-        CoordinatorResult<StreamsGroupInitializeResult, CoordinatorRecord> result = new CoordinatorResult<>(
-            Collections.emptyList(),
-            new StreamsGroupInitializeResult(new StreamsGroupInitializeResponseData())
-        );
-
-        when(groupMetadataManager.streamsGroupInitialize(
-            context,
-            request
-        )).thenReturn(result);
-
-        assertEquals(result, coordinator.streamsGroupInitialize(context, request));
-    }
-
-    @Test
     public void testStreamsGroupHeartbeat() {
         GroupMetadataManager groupMetadataManager = mock(GroupMetadataManager.class);
         OffsetMetadataManager offsetMetadataManager = mock(OffsetMetadataManager.class);
@@ -185,9 +151,9 @@ public class GroupCoordinatorShardTest {
 
         RequestContext context = requestContext(ApiKeys.STREAMS_GROUP_HEARTBEAT);
         StreamsGroupHeartbeatRequestData request = new StreamsGroupHeartbeatRequestData();
-        CoordinatorResult<StreamsGroupHeartbeatResponseData, CoordinatorRecord> result = new CoordinatorResult<>(
+        CoordinatorResult<StreamsGroupHeartbeatResult, CoordinatorRecord> result = new CoordinatorResult<>(
             Collections.emptyList(),
-            new StreamsGroupHeartbeatResponseData()
+            new StreamsGroupHeartbeatResult(new StreamsGroupHeartbeatResponseData())
         );
 
         when(groupMetadataManager.streamsGroupHeartbeat(

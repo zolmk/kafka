@@ -14,7 +14,7 @@
 // limitations under the License.
 
 {
-  "apiKey": 90,
+  "apiKey": 89,
   "type": "request",
   "listeners": ["broker", "zkBroker"],
   "name": "StreamsGroupDescribeRequest",

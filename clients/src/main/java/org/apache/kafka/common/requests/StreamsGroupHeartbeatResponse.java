@@ -38,6 +38,7 @@ import java.util.Map;
  * - {@link Errors#UNSUPPORTED_ASSIGNOR}
  * - {@link Errors#UNRELEASED_INSTANCE_ID}
  * - {@link Errors#GROUP_MAX_SIZE_REACHED}
+ * - {@link Errors#STREAMS_INVALID_TOPOLOGY}
  * - {@link Errors#STREAMS_SHUTDOWN_APPLICATION}
  * - {@link Errors#STREAMS_INCONSISTENT_TOPOLOGY}
  * - {@link Errors#STREAMS_MISSING_SOURCE_TOPICS}

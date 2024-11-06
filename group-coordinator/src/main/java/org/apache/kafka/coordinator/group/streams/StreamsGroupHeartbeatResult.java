@@ -17,28 +17,28 @@
 package org.apache.kafka.coordinator.group.streams;
 
 import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopic;
-import org.apache.kafka.common.message.StreamsGroupInitializeResponseData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
-public class StreamsGroupInitializeResult {
+public class StreamsGroupHeartbeatResult {
 
-    private final StreamsGroupInitializeResponseData data;
+    private final StreamsGroupHeartbeatResponseData data;
     private final Map<String, CreatableTopic> creatableTopics;
 
-    public StreamsGroupInitializeResult(StreamsGroupInitializeResponseData data, Map<String, CreatableTopic> creatableTopics) {
+    public StreamsGroupHeartbeatResult(StreamsGroupHeartbeatResponseData data, Map<String, CreatableTopic> creatableTopics) {
         this.data = data;
         this.creatableTopics = creatableTopics;
     }
 
-    public StreamsGroupInitializeResult(StreamsGroupInitializeResponseData data) {
+    public StreamsGroupHeartbeatResult(StreamsGroupHeartbeatResponseData data) {
         this.data = data;
         this.creatableTopics = Collections.emptyMap();
     }
 
-    public StreamsGroupInitializeResponseData responseData() {
+    public StreamsGroupHeartbeatResponseData responseData() {
         return data;
     }
 
@@ -54,7 +54,7 @@ public class StreamsGroupInitializeResult {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final StreamsGroupInitializeResult that = (StreamsGroupInitializeResult) o;
+        final StreamsGroupHeartbeatResult that = (StreamsGroupHeartbeatResult) o;
         return Objects.equals(data, that.data) && Objects.equals(creatableTopics,
             that.creatableTopics);
     }
@@ -66,7 +66,7 @@ public class StreamsGroupInitializeResult {
 
     @Override
     public String toString() {
-        return "StreamsGroupInitializeResult{" +
+        return "StreamsGroupHeartbeatResult{" +
             "data=" + data +
             ", creatableTopics=" + creatableTopics +
             '}';

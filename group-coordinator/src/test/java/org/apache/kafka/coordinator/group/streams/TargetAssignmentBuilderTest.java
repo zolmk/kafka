@@ -226,7 +226,7 @@ public class TargetAssignmentBuilderTest {
                 .withMembers(members)
                 .withTopology(topology)
                 .withStaticMembers(staticMembers)
-                .withSubscriptionMetadata(subscriptionMetadata)
+                .withPartitionMetadata(subscriptionMetadata)
                 .withTargetAssignment(targetAssignment);
 
             // Add the updated members or delete the deleted members.

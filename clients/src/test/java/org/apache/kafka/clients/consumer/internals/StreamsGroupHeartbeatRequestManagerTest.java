@@ -28,6 +28,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData.TopicPartitions;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
@@ -48,6 +49,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,7 +64,9 @@ import java.util.stream.Collectors;
 import static org.apache.kafka.common.utils.Utils.mkEntry;
 import static org.apache.kafka.common.utils.Utils.mkMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -86,9 +91,6 @@ class StreamsGroupHeartbeatRequestManagerTest {
 
     @Mock
     private CoordinatorRequestManager coordinatorRequestManager;
-
-    @Mock
-    private StreamsGroupInitializeRequestManager streamsGroupInitializeRequestManager;
 
     @Mock
     private ConsumerMembershipManager membershipManager;
@@ -136,7 +138,6 @@ class StreamsGroupHeartbeatRequestManagerTest {
             time,
             config,
             coordinatorRequestManager,
-            streamsGroupInitializeRequestManager,
             membershipManager,
             backgroundEventHandler,
             metrics,
@@ -188,16 +189,44 @@ class StreamsGroupHeartbeatRequestManagerTest {
         assertEquals(TEST_MEMBER_ID, request.data().memberId());
         assertEquals(TEST_MEMBER_EPOCH, request.data().memberEpoch());
         assertEquals(TEST_INSTANCE_ID, request.data().instanceId());
+        assertEquals(streamsAssignmentInterface.topologyId(), request.data().topologyId());
 
         // Static information is null
         assertNull(request.data().processId());
         assertNull(request.data().userEndpoint());
         assertNull(request.data().clientTags());
+        assertNull(request.data().topology());
     }
 
     @Test
     void testFullStaticInformationWhenJoining() {
         mockJoiningState();
+
+        final Set<String> sourceTopics = Set.of("sourceTopic1", "sourceTopic2");
+        final Set<String> repartitionSinkTopics = Set.of("repartitionSinkTopic1", "repartitionSinkTopic2", "repartitionSinkTopic3");
+        final Map<String, StreamsAssignmentInterface.TopicInfo> repartitionSourceTopics = mkMap(
+            mkEntry("repartitionTopic1", new StreamsAssignmentInterface.TopicInfo(Optional.of(2), Optional.of((short) 1), Collections.emptyMap())),
+            mkEntry("repartitionTopic2", new StreamsAssignmentInterface.TopicInfo(Optional.of(3), Optional.of((short) 3), Collections.emptyMap()))
+        );
+        final Map<String, StreamsAssignmentInterface.TopicInfo> changelogTopics = mkMap(
+            mkEntry("changelogTopic1", new StreamsAssignmentInterface.TopicInfo(Optional.empty(), Optional.of((short) 1), Collections.emptyMap())),
+            mkEntry("changelogTopic2", new StreamsAssignmentInterface.TopicInfo(Optional.empty(), Optional.of((short) 2), Collections.emptyMap())),
+            mkEntry("changelogTopic3", new StreamsAssignmentInterface.TopicInfo(Optional.empty(), Optional.of((short) 3), Collections.emptyMap()))
+        );
+        final Collection<Set<String>> copartitionGroup = Set.of(
+            Set.of("sourceTopic1", "repartitionTopic2"),
+            Set.of("sourceTopic2", "repartitionTopic1")
+        );
+        final StreamsAssignmentInterface.Subtopology subtopology1 = new StreamsAssignmentInterface.Subtopology(
+            sourceTopics,
+            repartitionSinkTopics,
+            repartitionSourceTopics,
+            changelogTopics,
+            copartitionGroup
+        );
+        final String subtopologyName1 = "subtopology1";
+        subtopologyMap.put(subtopologyName1, subtopology1);
+
         clientTags.put("clientTag1", "value2");
 
         NetworkClientDelegate.PollResult result = heartbeatRequestManager.poll(time.milliseconds());
@@ -213,6 +242,38 @@ class StreamsGroupHeartbeatRequestManagerTest {
         assertEquals(1, request.data().clientTags().size());
         assertEquals("clientTag1", request.data().clientTags().get(0).key());
         assertEquals("value2", request.data().clientTags().get(0).value());
+        assertEquals(streamsAssignmentInterface.topologyId(), request.data().topologyId());
+        assertNotNull(request.data().topology());
+        final List<StreamsGroupHeartbeatRequestData.Subtopology> subtopologies = request.data().topology();
+        assertEquals(1, subtopologies.size());
+        final StreamsGroupHeartbeatRequestData.Subtopology subtopology = subtopologies.get(0);
+        assertEquals(subtopologyName1, subtopology.subtopologyId());
+        assertEquals(Arrays.asList("sourceTopic1", "sourceTopic2"), subtopology.sourceTopics());
+        assertEquals(Arrays.asList("repartitionSinkTopic1", "repartitionSinkTopic2", "repartitionSinkTopic3"), subtopology.repartitionSinkTopics());
+        assertEquals(repartitionSourceTopics.size(), subtopology.repartitionSourceTopics().size());
+        subtopology.repartitionSourceTopics().forEach(topicInfo -> {
+            final StreamsAssignmentInterface.TopicInfo repartitionTopic = repartitionSourceTopics.get(topicInfo.name());
+            assertEquals(repartitionTopic.numPartitions.get(), topicInfo.partitions());
+            assertEquals(repartitionTopic.replicationFactor.get(), topicInfo.replicationFactor());
+        });
+        assertEquals(changelogTopics.size(), subtopology.stateChangelogTopics().size());
+        subtopology.stateChangelogTopics().forEach(topicInfo -> {
+            assertTrue(changelogTopics.containsKey(topicInfo.name()));
+            assertEquals(0, topicInfo.partitions());
+            final StreamsAssignmentInterface.TopicInfo changelogTopic = changelogTopics.get(topicInfo.name());
+            assertEquals(changelogTopic.replicationFactor.get(), topicInfo.replicationFactor());
+        });
+        assertEquals(2, subtopology.copartitionGroups().size());
+        final StreamsGroupHeartbeatRequestData.CopartitionGroup expectedCopartitionGroupData1 =
+            new StreamsGroupHeartbeatRequestData.CopartitionGroup()
+                .setRepartitionSourceTopics(Collections.singletonList((short) 0))
+                .setSourceTopics(Collections.singletonList((short) 1));
+        final StreamsGroupHeartbeatRequestData.CopartitionGroup expectedCopartitionGroupData2 =
+            new StreamsGroupHeartbeatRequestData.CopartitionGroup()
+                .setRepartitionSourceTopics(Collections.singletonList((short) 1))
+                .setSourceTopics(Collections.singletonList((short) 0));
+        assertTrue(subtopology.copartitionGroups().contains(expectedCopartitionGroupData1));
+        assertTrue(subtopology.copartitionGroups().contains(expectedCopartitionGroupData2));
     }
 
     @Test
@@ -316,21 +377,6 @@ class StreamsGroupHeartbeatRequestManagerTest {
         assertEquals(warmupTaskId.subtopologyId(), "2");
         assertEquals(warmupTaskId.partitionId(), 2);
 
-    }
-
-    @Test
-    void testInitializeTopology() {
-        mockJoiningState();
-
-        StreamsGroupHeartbeatResponseData data = new StreamsGroupHeartbeatResponseData()
-            .setErrorCode(Errors.NONE.code())
-            .setThrottleTimeMs(0)
-            .setMemberEpoch(TEST_MEMBER_EPOCH)
-            .setShouldInitializeTopology(true);
-
-        mockResponse(data);
-
-        verify(streamsGroupInitializeRequestManager).initialize();
     }
 
     private void mockResponse(final StreamsGroupHeartbeatResponseData data) {

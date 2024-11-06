@@ -22,14 +22,18 @@ import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.StaleMemberEpochException;
 import org.apache.kafka.common.errors.UnknownMemberIdException;
+import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopic;
 import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.coordinator.common.runtime.CoordinatorRecord;
 import org.apache.kafka.coordinator.group.Group;
 import org.apache.kafka.coordinator.group.OffsetExpirationCondition;
 import org.apache.kafka.coordinator.group.OffsetExpirationConditionImpl;
 import org.apache.kafka.coordinator.group.metrics.GroupCoordinatorMetricsShard;
+import org.apache.kafka.coordinator.group.streams.topics.ConfiguredSubtopology;
+import org.apache.kafka.coordinator.group.streams.topics.InternalTopicManager;
 import org.apache.kafka.image.ClusterImage;
 import org.apache.kafka.image.TopicImage;
 import org.apache.kafka.image.TopicsImage;
@@ -37,6 +41,7 @@ import org.apache.kafka.timeline.SnapshotRegistry;
 import org.apache.kafka.timeline.TimelineHashMap;
 import org.apache.kafka.timeline.TimelineInteger;
 import org.apache.kafka.timeline.TimelineObject;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +56,7 @@ import java.util.Set;
 import static java.util.Collections.emptyMap;
 import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.ASSIGNING;
 import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.EMPTY;
-import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.INITIALIZING;
+import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.NOT_READY;
 import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.RECONCILING;
 import static org.apache.kafka.coordinator.group.streams.StreamsGroup.StreamsGroupState.STABLE;
 
@@ -62,7 +67,7 @@ public class StreamsGroup implements Group {
 
     public enum StreamsGroupState {
         EMPTY("Empty"),
-        INITIALIZING("Initializing"),
+        NOT_READY("Not Ready"),
         ASSIGNING("Assigning"),
         RECONCILING("Reconciling"),
         STABLE("Stable"),
@@ -74,7 +79,7 @@ public class StreamsGroup implements Group {
 
         StreamsGroupState(String name) {
             this.name = name;
-            this.lowerCaseName = name.toLowerCase(Locale.ROOT);
+            this.lowerCaseName = name.toLowerCase(Locale.ROOT).replace(" ", "_");
         }
 
         @Override
@@ -100,6 +105,9 @@ public class StreamsGroup implements Group {
         }
     }
 
+    private final LogContext logContext;
+    private final Logger log;
+
     /**
      * The snapshot registry.
      */
@@ -116,8 +124,8 @@ public class StreamsGroup implements Group {
     private final TimelineObject<StreamsGroupState> state;
 
     /**
-     * The group epoch. The epoch is incremented whenever the subscriptions are updated and it will trigger the computation of a new
-     * assignment for the group.
+     * The group epoch. The epoch is incremented whenever the topology, topic metadata or the set of members changes and it will trigger
+     * the computation of a new assignment for the group.
      */
     private final TimelineInteger groupEpoch;
 
@@ -134,7 +142,7 @@ public class StreamsGroup implements Group {
     /**
      * The metadata associated with each subscribed topic name.
      */
-    private final TimelineHashMap<String, TopicMetadata> subscribedTopicMetadata;
+    private final TimelineHashMap<String, TopicMetadata> partitionMetadata;
 
     /**
      * The target assignment epoch. An assignment epoch smaller than the group epoch means that a new assignment is required. The assignment
@@ -173,6 +181,11 @@ public class StreamsGroup implements Group {
     private final TimelineObject<Optional<StreamsTopology>> topology;
 
     /**
+     * The configured topology including resolved regular expressions.
+     */
+    private final TimelineObject<Optional<StreamsConfiguredTopology>> configuredTopology;
+
+    /**
      * The metadata refresh deadline. It consists of a timestamp in milliseconds together with the group epoch at the time of setting it.
      * The metadata refresh time is considered as a soft state (read that it is not stored in a timeline data structure). It is like this
      * because it is not persisted to the log. The group epoch is here to ensure that the metadata refresh deadline is invalidated if the
@@ -182,17 +195,20 @@ public class StreamsGroup implements Group {
     private DeadlineAndEpoch metadataRefreshDeadline = DeadlineAndEpoch.EMPTY;
 
     public StreamsGroup(
+        LogContext logContext,
         SnapshotRegistry snapshotRegistry,
         String groupId,
         GroupCoordinatorMetricsShard metrics
     ) {
+        this.log = logContext.logger(StreamsGroup.class);
+        this.logContext = logContext;
         this.snapshotRegistry = Objects.requireNonNull(snapshotRegistry);
         this.groupId = Objects.requireNonNull(groupId);
-        this.state = new TimelineObject<>(snapshotRegistry, INITIALIZING);
+        this.state = new TimelineObject<>(snapshotRegistry, EMPTY);
         this.groupEpoch = new TimelineInteger(snapshotRegistry);
         this.members = new TimelineHashMap<>(snapshotRegistry, 0);
         this.staticMembers = new TimelineHashMap<>(snapshotRegistry, 0);
-        this.subscribedTopicMetadata = new TimelineHashMap<>(snapshotRegistry, 0);
+        this.partitionMetadata = new TimelineHashMap<>(snapshotRegistry, 0);
         this.targetAssignmentEpoch = new TimelineInteger(snapshotRegistry);
         this.targetAssignment = new TimelineHashMap<>(snapshotRegistry, 0);
         this.invertedTargetActiveTasksAssignment = new TimelineHashMap<>(snapshotRegistry, 0);
@@ -203,6 +219,7 @@ public class StreamsGroup implements Group {
         this.currentWarmupTaskProcessIds = new TimelineHashMap<>(snapshotRegistry, 0);
         this.metrics = Objects.requireNonNull(metrics);
         this.topology = new TimelineObject<>(snapshotRegistry, Optional.empty());
+        this.configuredTopology = new TimelineObject<>(snapshotRegistry, Optional.empty());
     }
 
     /**
@@ -239,12 +256,17 @@ public class StreamsGroup implements Group {
             .setGroupType(type().toString());
     }
 
+    public StreamsConfiguredTopology configuredTopology() {
+        return configuredTopology.get().orElse(null);
+    }
+
     public StreamsTopology topology() {
         return topology.get().orElse(null);
     }
 
     public void setTopology(StreamsTopology topology) {
         this.topology.set(Optional.of(topology));
+        maybeUpdateConfiguredTopology();
         maybeUpdateGroupState();
     }
 
@@ -657,42 +679,44 @@ public class StreamsGroup implements Group {
     }
 
     /**
-     * @return An immutable Map of subscription metadata for each topic that the consumer group is subscribed to.
+     * @return An immutable Map of partition metadata for each topic that the consumer group is subscribed to.
      */
-    public Map<String, TopicMetadata> subscriptionMetadata() {
-        return Collections.unmodifiableMap(subscribedTopicMetadata);
+    public Map<String, TopicMetadata> partitionMetadata() {
+        return Collections.unmodifiableMap(partitionMetadata);
     }
 
     /**
-     * Updates the subscription metadata. This replaces the previous one.
+     * Updates the partition metadata. This replaces the previous one.
      *
-     * @param subscriptionMetadata The new subscription metadata.
+     * @param partitionMetadata The new partition metadata.
      */
-    public void setSubscriptionMetadata(
-        Map<String, TopicMetadata> subscriptionMetadata
+    public void setPartitionMetadata(
+        Map<String, TopicMetadata> partitionMetadata
     ) {
-        this.subscribedTopicMetadata.clear();
-        this.subscribedTopicMetadata.putAll(subscriptionMetadata);
+        this.partitionMetadata.clear();
+        this.partitionMetadata.putAll(partitionMetadata);
+        maybeUpdateConfiguredTopology();
+        maybeUpdateGroupState();
     }
 
     /**
-     * Computes the subscription metadata based on the current subscription info.
+     * Computes the partition metadata based on the current topology and the current topics/cluster image.
      *
      * @param topicsImage          The current metadata for all available topics.
      * @param clusterImage         The current metadata for the Kafka cluster.
-     * @return An immutable map of subscription metadata for each topic that the consumer group is subscribed to.
+     * @return An immutable map of partition metadata for each topic that the streams topology is using (besides non-repartition sink topics)
      */
-    public Map<String, TopicMetadata> computeSubscriptionMetadata(
+    public Map<String, TopicMetadata> computePartitionMetadata(
         TopicsImage topicsImage,
         ClusterImage clusterImage,
         StreamsTopology topology
     ) {
-        Set<String> subscribedTopicNames = topology.topicSubscription();
+        Set<String> requiredTopicNames = topology.requiredTopics();
 
         // Create the topic metadata for each subscribed topic.
-        Map<String, TopicMetadata> newSubscriptionMetadata = new HashMap<>(subscribedTopicNames.size());
+        Map<String, TopicMetadata> newSubscriptionMetadata = new HashMap<>(requiredTopicNames.size());
 
-        subscribedTopicNames.forEach(topicName -> {
+        requiredTopicNames.forEach(topicName -> {
             TopicImage topicImage = topicsImage.getTopic(topicName);
             if (topicImage != null) {
                 Map<Integer, Set<String>> partitionRacks = new HashMap<>();
@@ -723,19 +747,19 @@ public class StreamsGroup implements Group {
     }
 
     /**
-     * Computes the subscription metadata based on the current subscription info.
+     * Computes the partition metadata based on the current topology and the current topics/cluster image.
      *
      * @param topicsImage          The current metadata for all available topics.
      * @param clusterImage         The current metadata for the Kafka cluster.
-     * @return An immutable map of subscription metadata for each topic that the consumer group is subscribed to.
+     * @return An immutable map of partition metadata for each topic that the streams topology is using (besides non-repartition sink topics)
      */
-    public Map<String, TopicMetadata> computeSubscriptionMetadata(
+    public Map<String, TopicMetadata> computePartitionMetadata(
         TopicsImage topicsImage,
         ClusterImage clusterImage
     ) {
         Optional<StreamsTopology> topology = this.topology.get();
         if (topology.isPresent()) {
-            return computeSubscriptionMetadata(topicsImage, clusterImage, topology.get());
+            return computePartitionMetadata(topicsImage, clusterImage, topology.get());
         }
         return Collections.emptyMap();
     }
@@ -846,7 +870,7 @@ public class StreamsGroup implements Group {
      */
     @Override
     public void validateDeleteGroup() throws ApiException {
-        if (state() != StreamsGroupState.EMPTY && state() != StreamsGroupState.INITIALIZING) {
+        if (state() != StreamsGroupState.EMPTY) {
             throw Errors.NON_EMPTY_GROUP.exception();
         }
     }
@@ -920,10 +944,10 @@ public class StreamsGroup implements Group {
     private void maybeUpdateGroupState() {
         StreamsGroupState previousState = state.get();
         StreamsGroupState newState = STABLE;
-        if (topology() == null) {
-            newState = INITIALIZING;
-        } else if (members.isEmpty()) {
+        if (members.isEmpty()) {
             newState = EMPTY;
+        } else if (topology() == null || configuredTopology() == null || !configuredTopology().isReady()) {
+            newState = NOT_READY;
         } else if (groupEpoch.get() > targetAssignmentEpoch.get()) {
             newState = ASSIGNING;
         } else {
@@ -937,6 +961,35 @@ public class StreamsGroup implements Group {
 
         state.set(newState);
         metrics.onStreamsGroupStateTransition(previousState, newState);
+    }
+
+    private void maybeUpdateConfiguredTopology() {
+        if (topology.get().isPresent()) {
+            final StreamsTopology streamsTopology = topology.get().get();
+
+            log.info("[GroupId {}] Attempting to configure the topology {}", groupId, streamsTopology);
+
+            try {
+                final Map<String, ConfiguredSubtopology> configuredTopics =
+                    InternalTopicManager.configureTopics(logContext, streamsTopology.subtopologies().values(), partitionMetadata);
+                final Map<String, CreatableTopic> internalTopicsToBeCreated = InternalTopicManager.missingTopics(
+                    configuredTopics, partitionMetadata);
+                if (internalTopicsToBeCreated.isEmpty()) {
+                    log.info("[GroupId {}] Valid topic configuration found, topology {} is now initialized.", groupId, streamsTopology.topologyId());
+                } else {
+                    log.info("[GroupId {}] Internal topics for topology {} need to be created: {}.", groupId, streamsTopology.topologyId(), internalTopicsToBeCreated.keySet());
+                }
+
+                this.configuredTopology.set(Optional.of(new StreamsConfiguredTopology(streamsTopology.topologyId(), configuredTopics, internalTopicsToBeCreated)));
+            } catch (Exception e) {
+                log.warn("[GroupId {}] Failed to configure internal topics for topology {}.", groupId, streamsTopology.topologyId(), e);
+                this.configuredTopology.set(Optional.empty());
+                // TODO: Set validation error, so it can be propagated to all members.
+            }
+
+        } else {
+            configuredTopology.set(Optional.empty());
+        }
     }
 
     /**
@@ -1145,7 +1198,7 @@ public class StreamsGroup implements Group {
             .setGroupEpoch(groupEpoch.get(committedOffset))
             .setGroupState(state.get(committedOffset).toString())
             .setAssignmentEpoch(targetAssignmentEpoch.get(committedOffset))
-            .setTopology(topology.get(committedOffset).map(StreamsTopology::asStreamsGroupDescribeTopology).orElse(null));
+            .setTopology(configuredTopology.get(committedOffset).map(StreamsConfiguredTopology::asStreamsGroupDescribeTopology).orElse(null));
         members.entrySet(committedOffset).forEach(
             entry -> describedGroup.members().add(
                 entry.getValue().asStreamsGroupDescribeMember(
@@ -1181,7 +1234,7 @@ public class StreamsGroup implements Group {
         );
 
         records.add(CoordinatorStreamsRecordHelpers.newStreamsGroupTargetAssignmentEpochRecord(groupId(), groupEpoch()));
-        records.add(CoordinatorStreamsRecordHelpers.newStreamsGroupPartitionMetadataRecord(groupId(), subscriptionMetadata()));
+        records.add(CoordinatorStreamsRecordHelpers.newStreamsGroupPartitionMetadataRecord(groupId(), partitionMetadata()));
 
         members().forEach((__, streamsGroupMember) ->
             records.add(CoordinatorStreamsRecordHelpers.newStreamsGroupCurrentAssignmentRecord(groupId(), streamsGroupMember))

@@ -276,7 +276,6 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.DELETE_SHARE_GROUP_STATE => handleDeleteShareGroupStateRequest(request)
         case ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY => handleReadShareGroupStateSummaryRequest(request)
         case ApiKeys.STREAMS_GROUP_DESCRIBE => handleStreamsGroupDescribe(request).exceptionally(handleError)
-        case ApiKeys.STREAMS_GROUP_INITIALIZE => handleStreamsGroupInitialize(request).exceptionally(handleError)
         case ApiKeys.STREAMS_GROUP_HEARTBEAT => handleStreamsGroupHeartbeat(request).exceptionally(handleError)
         case _ => throw new IllegalStateException(s"No handler for request api key ${request.header.apiKey}")
       }
@@ -3879,83 +3878,6 @@ class KafkaApis(val requestChannel: RequestChannel,
     config.groupCoordinatorRebalanceProtocols.contains(Group.GroupType.STREAMS)
   }
 
-  def handleStreamsGroupInitialize(request: RequestChannel.Request): CompletableFuture[Unit] = {
-    // TODO: The unit tests for this method are insufficient. Once we merge initialize with group heartbeat, we have to extend the tests to cover ACLs and internal topic creation
-    val streamsGroupInitializeRequest = request.body[StreamsGroupInitializeRequest]
-
-    if (!isStreamsGroupProtocolEnabled()) {
-      // The API is not supported by the "old" group coordinator (the default). If the
-      // new one is not enabled, we fail directly here.
-      requestHelper.sendMaybeThrottle(request, streamsGroupInitializeRequest.getErrorResponse(Errors.UNSUPPORTED_VERSION.exception))
-      CompletableFuture.completedFuture[Unit](())
-    } else if (!authHelper.authorize(request.context, READ, GROUP, streamsGroupInitializeRequest.data.groupId)) {
-      requestHelper.sendMaybeThrottle(request, streamsGroupInitializeRequest.getErrorResponse(Errors.GROUP_AUTHORIZATION_FAILED.exception))
-      CompletableFuture.completedFuture[Unit](())
-    } else {
-      val requestContext = request.context
-
-      val internalTopics: Map[String, StreamsGroupInitializeRequestData.TopicInfo] = {
-        streamsGroupInitializeRequest.data().topology().asScala.flatMap(subtopology =>
-          subtopology.repartitionSourceTopics().iterator().asScala ++ subtopology.stateChangelogTopics().iterator().asScala
-        ).map(x => x.name() -> x).toMap
-      }
-
-      val prohibitedInternalTopics = internalTopics.keys.filter(Topic.isInternal)
-      if (prohibitedInternalTopics.nonEmpty) {
-        val errorResponse = new StreamsGroupInitializeResponseData()
-        errorResponse.setErrorCode(Errors.STREAMS_INVALID_TOPOLOGY.code)
-        errorResponse.setErrorMessage(f"Use of Kafka internal topics ${prohibitedInternalTopics.mkString(",")} as Kafka Streams internal topics is prohibited.")
-        requestHelper.sendMaybeThrottle(request, new StreamsGroupInitializeResponse(errorResponse))
-        return CompletableFuture.completedFuture[Unit](())
-      }
-
-      val invalidTopics = internalTopics.keys.filterNot(Topic.isValid)
-      if (invalidTopics.nonEmpty) {
-        val errorResponse = new StreamsGroupInitializeResponseData()
-        errorResponse.setErrorCode(Errors.STREAMS_INVALID_TOPOLOGY.code)
-        errorResponse.setErrorMessage(f"Internal topic names ${invalidTopics.mkString(",")} are not valid topic names.")
-        requestHelper.sendMaybeThrottle(request, new StreamsGroupInitializeResponse(errorResponse))
-        return CompletableFuture.completedFuture[Unit](())
-      }
-
-      // TODO: Once we move initialization to the heartbeat, we should only require these permissions if there are missing internal topics.
-      if(!authHelper.authorize(request.context, CREATE, CLUSTER, CLUSTER_NAME, logIfDenied = false)) {
-        val (_, createTopicUnauthorized) = authHelper.partitionSeqByAuthorized(request.context, CREATE, TOPIC, internalTopics.keys.toSeq)(identity[String])
-        if (createTopicUnauthorized.nonEmpty) {
-          val errorResponse = new StreamsGroupInitializeResponseData()
-          errorResponse.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
-          errorResponse.setErrorMessage(f"Unauthorized to CREATE TOPIC ${createTopicUnauthorized.mkString(",")}.")
-          requestHelper.sendMaybeThrottle(request, new StreamsGroupInitializeResponse(errorResponse))
-          return CompletableFuture.completedFuture[Unit](())
-        }
-      }
-
-      val (_, describeConfigsAuthorized) = authHelper.partitionSeqByAuthorized(request.context, DESCRIBE_CONFIGS, TOPIC, internalTopics.keys.toSeq)(identity[String])
-      if (describeConfigsAuthorized.nonEmpty) {
-        val errorResponse = new StreamsGroupInitializeResponseData()
-        errorResponse.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
-        errorResponse.setErrorMessage(f"Unauthorized to DESCRIBE_CONFIGS on topics ${describeConfigsAuthorized.mkString(",")} are unauthorized.")
-        requestHelper.sendMaybeThrottle(request, new StreamsGroupInitializeResponse(errorResponse))
-        return CompletableFuture.completedFuture[Unit](())
-      }
-
-      groupCoordinator.streamsGroupInitialize(
-        request.context,
-        streamsGroupInitializeRequest.data,
-      ).handle[Unit] { (response, exception) =>
-        if (exception != null) {
-          requestHelper.sendMaybeThrottle(request, streamsGroupInitializeRequest.getErrorResponse(exception))
-        } else {
-          if (!response.creatableTopics().isEmpty) {
-            // TODO: Once we move this code to the heartbeat, we should indicate which topics are being created. We should also find a way to propagate failures to the client
-            autoTopicCreationManager.createStreamsInternalTopics(response.creatableTopics().asScala, requestContext);
-          }
-          requestHelper.sendMaybeThrottle(request, new StreamsGroupInitializeResponse(response.responseData()))
-        }
-      }
-    }
-  }
-
   def handleStreamsGroupHeartbeat(request: RequestChannel.Request): CompletableFuture[Unit] = {
     val streamsGroupHeartbeatRequest = request.body[StreamsGroupHeartbeatRequest]
 
@@ -3968,6 +3890,50 @@ class KafkaApis(val requestChannel: RequestChannel,
       requestHelper.sendMaybeThrottle(request, streamsGroupHeartbeatRequest.getErrorResponse(Errors.GROUP_AUTHORIZATION_FAILED.exception))
       CompletableFuture.completedFuture[Unit](())
     } else {
+      val requestContext = request.context
+
+      if (streamsGroupHeartbeatRequest.data().topology() != null) {
+        val requiredTopics: Seq[String] =
+          streamsGroupHeartbeatRequest.data().topology().iterator().asScala.flatMap(subtopology =>
+            (subtopology.sourceTopics().iterator().asScala:Iterator[String])
+              ++ (subtopology.repartitionSinkTopics().iterator().asScala:Iterator[String])
+              ++ (subtopology.repartitionSourceTopics().iterator().asScala.map(_.name()):Iterator[String])
+              ++ (subtopology.stateChangelogTopics().iterator().asScala.map(_.name()):Iterator[String])
+          ).toSeq
+
+        // While correctness of the heartbeat request is checked inside the group coordinator,
+        // we are checking early that topics in the topology have valid names and are not internal
+        // kafka topics, since we need to pass it to the authorization helper before passing the
+        // request to the group coordinator.
+
+        val prohibitedTopics = requiredTopics.filter(Topic.isInternal)
+        if (prohibitedTopics.nonEmpty) {
+          val errorResponse = new StreamsGroupHeartbeatResponseData()
+          errorResponse.setErrorCode(Errors.STREAMS_INVALID_TOPOLOGY.code)
+          errorResponse.setErrorMessage(f"Use of Kafka internal topics ${prohibitedTopics.mkString(",")} in a Kafka Streams topology is prohibited.")
+          requestHelper.sendMaybeThrottle(request, new StreamsGroupHeartbeatResponse(errorResponse))
+          return CompletableFuture.completedFuture[Unit](())
+        }
+
+        val invalidTopics = requiredTopics.filterNot(Topic.isValid)
+        if (invalidTopics.nonEmpty) {
+          val errorResponse = new StreamsGroupHeartbeatResponseData()
+          errorResponse.setErrorCode(Errors.STREAMS_INVALID_TOPOLOGY.code)
+          errorResponse.setErrorMessage(f"Topic names ${invalidTopics.mkString(",")} are not valid topic names.")
+          requestHelper.sendMaybeThrottle(request, new StreamsGroupHeartbeatResponse(errorResponse))
+          return CompletableFuture.completedFuture[Unit](())
+        }
+
+        val (_, describeConfigsAuthorized) = authHelper.partitionSeqByAuthorized(request.context, DESCRIBE_CONFIGS, TOPIC, requiredTopics.toSeq)(identity[String])
+        if (describeConfigsAuthorized.nonEmpty) {
+          val errorResponse = new StreamsGroupHeartbeatResponseData()
+          errorResponse.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
+          errorResponse.setErrorMessage(f"Unauthorized to DESCRIBE_CONFIGS on topics ${describeConfigsAuthorized.mkString(",")} are unauthorized.")
+          requestHelper.sendMaybeThrottle(request, new StreamsGroupHeartbeatResponse(errorResponse))
+          return CompletableFuture.completedFuture[Unit](())
+        }
+      }
+
       groupCoordinator.streamsGroupHeartbeat(
         request.context,
         streamsGroupHeartbeatRequest.data,
@@ -3975,7 +3941,24 @@ class KafkaApis(val requestChannel: RequestChannel,
         if (exception != null) {
           requestHelper.sendMaybeThrottle(request, streamsGroupHeartbeatRequest.getErrorResponse(exception))
         } else {
-          requestHelper.sendMaybeThrottle(request, new StreamsGroupHeartbeatResponse(response))
+          var responseData = response.responseData();
+          if (!response.creatableTopics().isEmpty) {
+
+            if(!authHelper.authorize(request.context, CREATE, CLUSTER, CLUSTER_NAME, logIfDenied = false)) {
+              val (_, createTopicUnauthorized) = authHelper.partitionSeqByAuthorized(request.context, CREATE, TOPIC, response.creatableTopics().keySet().asScala.toSeq)(identity[String])
+              if (createTopicUnauthorized.nonEmpty) {
+                // TODO: Once topic validation is done, this should just add a status to the response
+                val errorResponse = new StreamsGroupHeartbeatResponseData()
+                errorResponse.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
+                errorResponse.setErrorMessage(f"Unauthorized to CREATE on topics ${createTopicUnauthorized.mkString(",")}.")
+                responseData = new StreamsGroupHeartbeatResponse(errorResponse).data();
+              }
+            }
+
+            autoTopicCreationManager.createStreamsInternalTopics(response.creatableTopics().asScala, requestContext);
+          }
+
+          requestHelper.sendMaybeThrottle(request, new StreamsGroupHeartbeatResponse(responseData))
         }
       }
     }

@@ -289,8 +289,6 @@ public abstract class AbstractResponse implements AbstractRequestResponse {
                 return ReadShareGroupStateSummaryResponse.parse(responseBuffer, version);
             case STREAMS_GROUP_HEARTBEAT:
                 return StreamsGroupHeartbeatResponse.parse(responseBuffer, version);
-            case STREAMS_GROUP_INITIALIZE:
-                return StreamsGroupInitializeResponse.parse(responseBuffer, version);
             case STREAMS_GROUP_DESCRIBE:
                 return StreamsGroupDescribeResponse.parse(responseBuffer, version);
             default:

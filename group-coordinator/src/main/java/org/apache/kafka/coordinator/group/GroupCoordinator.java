@@ -41,8 +41,6 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
@@ -50,7 +48,7 @@ import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.requests.RequestContext;
 import org.apache.kafka.common.requests.TransactionResult;
 import org.apache.kafka.common.utils.BufferSupplier;
-import org.apache.kafka.coordinator.group.streams.StreamsGroupInitializeResult;
+import org.apache.kafka.coordinator.group.streams.StreamsGroupHeartbeatResult;
 import org.apache.kafka.image.MetadataDelta;
 import org.apache.kafka.image.MetadataImage;
 
@@ -88,29 +86,15 @@ public interface GroupCoordinator {
     );
 
     /**
-     * Initialize a Streams Group.
-     *
-     * @param context           The request context.
-     * @param request           The StreamsGroupInitializeRequest data.
-     *
-     * @return  A future yielding the result, which contains the response and all topics to be created.
-     *          The error code(s) of the response are set to indicate the error(s) occurred during the execution.
-     */
-    CompletableFuture<StreamsGroupInitializeResult> streamsGroupInitialize(
-        RequestContext context,
-        StreamsGroupInitializeRequestData request
-    );
-
-    /**
      * Heartbeat to a Streams Group.
      *
      * @param context           The request context.
      * @param request           The StreamsGroupHeartbeatResponseData data.
      *
-     * @return  A future yielding the response.
+     * @return  A future yielding the response together with internal topics to create.
      *          The error code(s) of the response are set to indicate the error(s) occurred during the execution.
      */
-    CompletableFuture<StreamsGroupHeartbeatResponseData> streamsGroupHeartbeat(
+    CompletableFuture<StreamsGroupHeartbeatResult> streamsGroupHeartbeat(
         RequestContext context,
         StreamsGroupHeartbeatRequestData request
     );

@@ -251,19 +251,19 @@ public class StreamsAssignmentInterface {
     public static class Subtopology {
 
         public final Set<String> sourceTopics;
-        public final Set<String> sinkTopics;
+        public final Set<String> repartitionSinkTopics;
         public final Map<String, TopicInfo> stateChangelogTopics;
         public final Map<String, TopicInfo> repartitionSourceTopics;
         public final Collection<Set<String>> copartitionGroups;
 
         public Subtopology(final Set<String> sourceTopics,
-                           final Set<String> sinkTopics,
+                           final Set<String> repartitionSinkTopics,
                            final Map<String, TopicInfo> repartitionSourceTopics,
                            final Map<String, TopicInfo> stateChangelogTopics,
                            final Collection<Set<String>> copartitionGroups
         ) {
             this.sourceTopics = sourceTopics;
-            this.sinkTopics = sinkTopics;
+            this.repartitionSinkTopics = repartitionSinkTopics;
             this.stateChangelogTopics = stateChangelogTopics;
             this.repartitionSourceTopics = repartitionSourceTopics;
             this.copartitionGroups = copartitionGroups;
@@ -273,7 +273,7 @@ public class StreamsAssignmentInterface {
         public String toString() {
             return "Subtopology{" +
                 "sourceTopics=" + sourceTopics +
-                ", sinkTopics=" + sinkTopics +
+                ", repartitionSinkTopics=" + repartitionSinkTopics +
                 ", stateChangelogTopics=" + stateChangelogTopics +
                 ", repartitionSourceTopics=" + repartitionSourceTopics +
                 ", copartitionGroups=" + copartitionGroups +

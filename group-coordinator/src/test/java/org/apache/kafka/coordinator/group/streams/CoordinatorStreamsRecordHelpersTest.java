@@ -16,7 +16,7 @@
  */
 package org.apache.kafka.coordinator.group.streams;
 
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.coordinator.common.runtime.CoordinatorRecord;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyKey;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupTopologyValue;
@@ -34,20 +34,20 @@ class CoordinatorStreamsRecordHelpersTest {
 
     @Test
     public void testNewStreamsGroupTopologyRecord() {
-        List<StreamsGroupInitializeRequestData.Subtopology> topology =
-            Collections.singletonList(new StreamsGroupInitializeRequestData.Subtopology()
+        List<StreamsGroupHeartbeatRequestData.Subtopology> topology =
+            Collections.singletonList(new StreamsGroupHeartbeatRequestData.Subtopology()
                 .setSubtopologyId("subtopology-id")
                 .setRepartitionSinkTopics(Collections.singletonList("foo"))
                 .setSourceTopics(Collections.singletonList("bar"))
                 .setSourceTopicRegex(Collections.singletonList("regex"))
                 .setRepartitionSourceTopics(
                     Collections.singletonList(
-                        new StreamsGroupInitializeRequestData.TopicInfo()
+                        new StreamsGroupHeartbeatRequestData.TopicInfo()
                             .setName("repartition")
                             .setPartitions(4)
                             .setReplicationFactor((short) 3)
                             .setTopicConfigs(Collections.singletonList(
-                                new StreamsGroupInitializeRequestData.TopicConfig()
+                                new StreamsGroupHeartbeatRequestData.KeyValue()
                                     .setKey("config-name1")
                                     .setValue("config-value1")
                             ))
@@ -55,21 +55,21 @@ class CoordinatorStreamsRecordHelpersTest {
                 )
                 .setStateChangelogTopics(
                     Collections.singletonList(
-                        new StreamsGroupInitializeRequestData.TopicInfo()
+                        new StreamsGroupHeartbeatRequestData.TopicInfo()
                             .setName("changelog")
                             .setReplicationFactor((short) 2)
                             .setTopicConfigs(Collections.singletonList(
-                                new StreamsGroupInitializeRequestData.TopicConfig()
+                                new StreamsGroupHeartbeatRequestData.KeyValue()
                                     .setKey("config-name2")
                                     .setValue("config-value2")
                             ))
                     )
                 )
                 .setCopartitionGroups(Arrays.asList(
-                    new StreamsGroupInitializeRequestData.CopartitionGroup()
+                    new StreamsGroupHeartbeatRequestData.CopartitionGroup()
                         .setSourceTopics(Collections.singletonList((short) 0))
                         .setRepartitionSourceTopics(Collections.singletonList((short) 0)),
-                    new StreamsGroupInitializeRequestData.CopartitionGroup()
+                    new StreamsGroupHeartbeatRequestData.CopartitionGroup()
                         .setSourceTopicRegex(Collections.singletonList((short) 0))
                 ))
             );

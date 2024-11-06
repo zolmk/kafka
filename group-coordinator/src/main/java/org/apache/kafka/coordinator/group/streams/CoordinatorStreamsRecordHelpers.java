@@ -16,7 +16,7 @@
  */
 package org.apache.kafka.coordinator.group.streams;
 
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.coordinator.common.runtime.CoordinatorRecord;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupCurrentMemberAssignmentKey;
 import org.apache.kafka.coordinator.group.generated.StreamsGroupCurrentMemberAssignmentValue;
@@ -105,16 +105,16 @@ public class CoordinatorStreamsRecordHelpers {
     /**
      * Creates a StreamsGroupPartitionMetadata record.
      *
-     * @param groupId                 The streams group id.
-     * @param newSubscriptionMetadata The subscription metadata.
+     * @param groupId              The streams group id.
+     * @param newPartitionMetadata The partition metadata.
      * @return The record.
      */
     public static CoordinatorRecord newStreamsGroupPartitionMetadataRecord(
         String groupId,
-        Map<String, org.apache.kafka.coordinator.group.streams.TopicMetadata> newSubscriptionMetadata
+        Map<String, org.apache.kafka.coordinator.group.streams.TopicMetadata> newPartitionMetadata
     ) {
         StreamsGroupPartitionMetadataValue value = new StreamsGroupPartitionMetadataValue();
-        newSubscriptionMetadata.forEach((topicName, topicMetadata) -> {
+        newPartitionMetadata.forEach((topicName, topicMetadata) -> {
             List<StreamsGroupPartitionMetadataValue.PartitionMetadata> partitionMetadata = new ArrayList<>();
             // If the partition rack information map is empty, store an empty list in the record.
             if (!topicMetadata.partitionRacks().isEmpty()) {
@@ -380,7 +380,7 @@ public class CoordinatorStreamsRecordHelpers {
      * @return The record.
      */
     public static CoordinatorRecord newStreamsGroupTopologyRecord(String groupId,
-                                                                  List<StreamsGroupInitializeRequestData.Subtopology> subtopologies) {
+                                                                  List<StreamsGroupHeartbeatRequestData.Subtopology> subtopologies) {
         return newStreamsGroupTopologyRecord(groupId, convertToStreamsGroupTopologyRecord(subtopologies));
     }
 
@@ -401,12 +401,12 @@ public class CoordinatorStreamsRecordHelpers {
     }
 
     /**
-     * Encodes subtopologies from the initialize RPC to a StreamsTopology record value.
+     * Encodes subtopologies from the Heartbeat RPC to a StreamsTopology record value.
      *
      * @param subtopologies The subtopologies in the new topology.
      * @return The record value.
      */
-    public static StreamsGroupTopologyValue convertToStreamsGroupTopologyRecord(List<StreamsGroupInitializeRequestData.Subtopology> subtopologies) {
+    public static StreamsGroupTopologyValue convertToStreamsGroupTopologyRecord(List<StreamsGroupHeartbeatRequestData.Subtopology> subtopologies) {
         StreamsGroupTopologyValue value = new StreamsGroupTopologyValue();
         subtopologies.forEach(subtopology -> {
             List<StreamsGroupTopologyValue.TopicInfo> repartitionSourceTopics =
@@ -442,7 +442,7 @@ public class CoordinatorStreamsRecordHelpers {
         return value;
     }
 
-    private static StreamsGroupTopologyValue.TopicInfo convertToTopicInfo(StreamsGroupInitializeRequestData.TopicInfo topicInfo) {
+    private static StreamsGroupTopologyValue.TopicInfo convertToTopicInfo(StreamsGroupHeartbeatRequestData.TopicInfo topicInfo) {
         List<StreamsGroupTopologyValue.TopicConfig> topicConfigs =  topicInfo.topicConfigs() != null ? topicInfo.topicConfigs().stream()
             .map(config -> new StreamsGroupTopologyValue.TopicConfig().setKey(config.key()).setValue(config.value()))
             .collect(Collectors.toList()) : null;

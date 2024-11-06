@@ -38,8 +38,6 @@ import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.StreamsGroupDescribeResponseData;
 import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.StreamsGroupHeartbeatResponseData;
-import org.apache.kafka.common.message.StreamsGroupInitializeRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.network.ClientInformation;
@@ -107,7 +105,7 @@ import org.apache.kafka.coordinator.group.modern.share.ShareGroup;
 import org.apache.kafka.coordinator.group.modern.share.ShareGroupBuilder;
 import org.apache.kafka.coordinator.group.streams.StreamsGroup;
 import org.apache.kafka.coordinator.group.streams.StreamsGroupBuilder;
-import org.apache.kafka.coordinator.group.streams.StreamsGroupInitializeResult;
+import org.apache.kafka.coordinator.group.streams.StreamsGroupHeartbeatResult;
 import org.apache.kafka.coordinator.group.taskassignor.TaskAssignor;
 import org.apache.kafka.image.MetadataImage;
 import org.apache.kafka.server.common.ApiMessageAndVersion;
@@ -719,38 +717,7 @@ public class GroupMetadataManagerTestContext {
         return result;
     }
 
-
-    public CoordinatorResult<StreamsGroupInitializeResult, CoordinatorRecord> streamsGroupInitialize(
-        StreamsGroupInitializeRequestData request
-    ) {
-        RequestContext context = new RequestContext(
-            new RequestHeader(
-                ApiKeys.STREAMS_GROUP_INITIALIZE,
-                ApiKeys.STREAMS_GROUP_INITIALIZE.latestVersion(),
-                "client",
-                0
-            ),
-            "1",
-            InetAddress.getLoopbackAddress(),
-            KafkaPrincipal.ANONYMOUS,
-            ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT),
-            SecurityProtocol.PLAINTEXT,
-            ClientInformation.EMPTY,
-            false
-        );
-
-        CoordinatorResult<StreamsGroupInitializeResult, CoordinatorRecord> result = groupMetadataManager.streamsGroupInitialize(
-            context,
-            request
-        );
-
-        if (result.replayRecords()) {
-            result.records().forEach(this::replay);
-        }
-        return result;
-    }
-
-    public CoordinatorResult<StreamsGroupHeartbeatResponseData, CoordinatorRecord> streamsGroupHeartbeat(
+    public CoordinatorResult<StreamsGroupHeartbeatResult, CoordinatorRecord> streamsGroupHeartbeat(
         StreamsGroupHeartbeatRequestData request
     ) {
         RequestContext context = new RequestContext(
@@ -769,7 +736,7 @@ public class GroupMetadataManagerTestContext {
             false
         );
 
-        CoordinatorResult<StreamsGroupHeartbeatResponseData, CoordinatorRecord> result = groupMetadataManager.streamsGroupHeartbeat(
+        CoordinatorResult<StreamsGroupHeartbeatResult, CoordinatorRecord> result = groupMetadataManager.streamsGroupHeartbeat(
             context,
             request
         );
