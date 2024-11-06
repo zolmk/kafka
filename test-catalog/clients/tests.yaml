@@ -3253,7 +3253,6 @@ org.apache.kafka.common.network.SelectorTest:
 - testIdleExpiryWithoutReadyKeys
 - testImmediatelyConnectedCleaned
 - testInboundConnectionsCountInConnectionCreationMetric
-- testIoMetricsHaveCorrectDoc
 - testLargeMessageSequence
 - testLowestPriorityChannel
 - testMetricsCleanupOnSelectorClose
@@ -3363,7 +3362,6 @@ org.apache.kafka.common.network.Tls12SelectorTest:
 - testIdleExpiryWithoutReadyKeys
 - testImmediatelyConnectedCleaned
 - testInboundConnectionsCountInConnectionCreationMetric
-- testIoMetricsHaveCorrectDoc
 - testLargeMessageSequence
 - testLowestPriorityChannel
 - testMetricsCleanupOnSelectorClose
@@ -3403,7 +3401,6 @@ org.apache.kafka.common.network.Tls13SelectorTest:
 - testIdleExpiryWithoutReadyKeys
 - testImmediatelyConnectedCleaned
 - testInboundConnectionsCountInConnectionCreationMetric
-- testIoMetricsHaveCorrectDoc
 - testKeyUpdate
 - testLargeMessageSequence
 - testLowestPriorityChannel
