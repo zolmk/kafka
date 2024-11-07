@@ -3821,14 +3821,18 @@ kafka.server.metadata.MockConfigRepositoryTest:
 kafka.server.share.DelayedShareFetchKeyTest:
 - testDelayedShareFetchEqualsAndHashcode
 kafka.server.share.DelayedShareFetchTest:
-- testDelayedShareFetchTryCompleteReturnsFalse
+- testCombineLogReadResponse
+- testDelayedShareFetchTryCompleteReturnsFalseDueToNonAcquirablePartitions
 - testDelayedShareFetchTryCompleteReturnsTrue
 - testEmptyFutureReturnedByDelayedShareFetchOnComplete
+- testExceptionInMinBytesCalculation
 - testForceCompleteTriggersDelayedActionsQueue
 - testLocksReleasedAcquireException
 - testLocksReleasedForCompletedFetch
 - testReplicaManagerFetchShouldHappenOnComplete
 - testToCompleteAnAlreadyCompletedFuture
+- testTryCompleteWhenMinBytesNotSatisfiedOnFirstFetch
+- testTryCompleteWhenMinBytesNotSatisfiedOnSubsequentFetch
 kafka.server.share.ShareFetchUtilsTest:
 - testProcessFetchResponse
 - testProcessFetchResponseWhenNoRecordsAreAcquired
