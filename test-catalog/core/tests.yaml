@@ -7,6 +7,8 @@ integration.kafka.api.PlaintextConsumerCallbackTest:
 - testConsumerRebalanceListenerBeginningOffsetsOnPartitionsRevoked
 - testGetPositionOfNewlyAssignedPartitionOnPartitionsAssignedCallback
 - testSeekPositionAndPauseNewlyAssignedPartitionOnPartitionsAssignedCallback
+integration.kafka.server.DelayedFutureTest:
+- testDelayedFuture
 kafka.KafkaConfigTest:
 - testBrokerRoleNodeIdValidation
 - testCombinedRoleNodeIdValidation
@@ -1992,6 +1994,7 @@ kafka.log.remote.RemoteLogManagerTest:
 - testEpochEntriesAsByteBuffer
 - testFailedCopyShouldDeleteTheDanglingSegment
 - testFailedDeleteExpiredSegments
+- testFetchNextSegmentWithTxnIndex
 - testFetchOffsetByTimestampWithTieredStorageDoesNotFetchIndexWhenExistsLocally
 - testFetchQuotaManagerConfig
 - testFetchRemoteLogSegmentMetadata
@@ -2000,6 +2003,8 @@ kafka.log.remote.RemoteLogManagerTest:
 - testFindHighestRemoteOffsetWithUncleanLeaderElection
 - testFindLogStartOffset
 - testFindLogStartOffsetFallbackToLocalLogStartOffsetWhenRemoteIsEmpty
+- testFindNextSegmentWithTxnIndex
+- testFindNextSegmentWithTxnIndexTraversesNextEpoch
 - testFindOffsetByTimestamp
 - testFindOffsetByTimestampWithInvalidEpochSegments
 - testFindOffsetByTimestampWithSegmentNotReady
@@ -2637,16 +2642,6 @@ kafka.server.DelayedFetchTest:
 - testDivergingEpoch
 - testFetchWithFencedEpoch
 - testNotLeaderOrFollower
-kafka.server.DelayedOperationTest:
-- shouldCancelForKeyReturningCancelledOperations
-- shouldReturnNilOperationsOnCancelForKeyWhenKeyDoesntExist
-- testDelayedFuture
-- testLockInTryCompleteElseWatch
-- testRequestExpiry
-- testRequestPurge
-- testRequestSatisfaction
-- testSafeTryCompleteOrElse
-- testTryCompleteWithMultipleThreads
 kafka.server.DelayedRemoteFetchTest:
 - testErrorLogReadInfo
 - testFetch

@@ -215,6 +215,15 @@ org.apache.kafka.server.network.EndpointReadyFuturesTest:
 - testAddReadinessFutures
 - testFailedReadinessFuture
 - testImmediateCompletion
+org.apache.kafka.server.purgatory.DelayedOperationTest:
+- shouldCancelForKeyReturningCancelledOperations
+- shouldReturnNilOperationsOnCancelForKeyWhenKeyDoesntExist
+- testLockInTryCompleteElseWatch
+- testRequestExpiry
+- testRequestPurge
+- testRequestSatisfaction
+- testSafeTryCompleteOrElse
+- testTryCompleteWithMultipleThreads
 org.apache.kafka.server.quota.QuotaUtilsTest:
 - testBoundedThrottleTimeObservedRateAboveQuotaAboveLimit
 - testBoundedThrottleTimeObservedRateAboveQuotaBelowLimit

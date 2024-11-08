@@ -308,6 +308,9 @@ org.apache.kafka.storage.internals.log.TransactionIndexTest:
 - testCollectAbortedTransactions
 - testDeleteIfExists
 - testFlush
+- testIsEmptyWhenFileDoesNotExist
+- testIsEmptyWhenFileIsEmpty
+- testIsEmptyWhenFileIsNotEmpty
 - testLastOffsetCannotDecrease
 - testLastOffsetMustIncrease
 - testPositionSetCorrectlyWhenOpened
@@ -337,6 +340,8 @@ org.apache.kafka.tiered.storage.integration.FetchFromLeaderWithCorruptedCheckpoi
 org.apache.kafka.tiered.storage.integration.ListOffsetsTest:
 - executeTieredStorageTest
 org.apache.kafka.tiered.storage.integration.OffloadAndConsumeFromLeaderTest:
+- executeTieredStorageTest
+org.apache.kafka.tiered.storage.integration.OffloadAndTxnConsumeFromLeaderTest:
 - executeTieredStorageTest
 org.apache.kafka.tiered.storage.integration.PartitionsExpandTest:
 - executeTieredStorageTest
