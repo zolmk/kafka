@@ -19,6 +19,8 @@ org.apache.kafka.coordinator.group.GroupCoordinatorRecordHelpersTest:
 - testNewConsumerGroupEpochTombstoneRecord
 - testNewConsumerGroupMemberSubscriptionRecord
 - testNewConsumerGroupMemberSubscriptionTombstoneRecord
+- testNewConsumerGroupRegularExpressionRecord
+- testNewConsumerGroupRegularExpressionTombstone
 - testNewConsumerGroupSubscriptionMetadataRecord
 - testNewConsumerGroupSubscriptionMetadataTombstoneRecord
 - testNewConsumerGroupTargetAssignmentEpochRecord
@@ -128,6 +130,8 @@ org.apache.kafka.coordinator.group.GroupCoordinatorShardTest:
 - testReplayConsumerGroupMetadataWithNullValue
 - testReplayConsumerGroupPartitionMetadata
 - testReplayConsumerGroupPartitionMetadataWithNullValue
+- testReplayConsumerGroupRegularExpression
+- testReplayConsumerGroupRegularExpressionTombstone
 - testReplayConsumerGroupTargetAssignmentMember
 - testReplayConsumerGroupTargetAssignmentMemberKeyWithNullValue
 - testReplayConsumerGroupTargetAssignmentMetadata
@@ -318,6 +322,8 @@ org.apache.kafka.coordinator.group.GroupMetadataManagerTest:
 - testReplayConsumerGroupMetadataTombstone
 - testReplayConsumerGroupPartitionMetadata
 - testReplayConsumerGroupPartitionMetadataTombstone
+- testReplayConsumerGroupRegularExpression
+- testReplayConsumerGroupRegularExpressionTombstone
 - testReplayConsumerGroupTargetAssignmentMember
 - testReplayConsumerGroupTargetAssignmentMemberTombstone
 - testReplayConsumerGroupTargetAssignmentMetadata
@@ -680,6 +686,7 @@ org.apache.kafka.coordinator.group.modern.consumer.ConsumerGroupTest:
 - testRemoveStaticMember
 - testStateTransitionMetrics
 - testSubscribedRegularExpressionCount
+- testUpdateAndRemoveRegularExpression
 - testUpdateInvertedAssignment
 - testUpdateMember
 - testUpdateSubscribedTopicNamesAndSubscriptionType
@@ -707,6 +714,9 @@ org.apache.kafka.coordinator.group.modern.consumer.CurrentAssignmentBuilderTest:
 - testUnrevokedPartitionsToStable
 - testUnrevokedPartitionsToUnreleasedPartitions
 - testUnrevokedPartitionsToUnrevokedPartitions
+org.apache.kafka.coordinator.group.modern.consumer.ResolvedRegularExpressionTest:
+- testConstructor
+- testEquals
 org.apache.kafka.coordinator.group.modern.share.ShareGroupAssignmentBuilderTest:
 - testStableToStable
 - testStableToStableWithNewPartitions
