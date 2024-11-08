@@ -19,6 +19,7 @@ org.apache.kafka.coordinator.share.ShareCoordinatorRecordSerdeTest:
 - testSerializeNullValue
 - testSerializeValue
 org.apache.kafka.coordinator.share.ShareCoordinatorServiceTest:
+- testPartitionFor
 - testReadFutureReturnsError
 - testReadStateSuccess
 - testReadStateValidationsError
