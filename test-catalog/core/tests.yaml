@@ -3814,8 +3814,6 @@ kafka.server.metadata.BrokerMetadataPublisherTest:
 kafka.server.metadata.MockConfigRepositoryTest:
 - testEmptyRepository
 - testSetTopicConfig
-kafka.server.share.DelayedShareFetchKeyTest:
-- testDelayedShareFetchEqualsAndHashcode
 kafka.server.share.DelayedShareFetchTest:
 - testCombineLogReadResponse
 - testDelayedShareFetchTryCompleteReturnsFalseDueToNonAcquirablePartitions
