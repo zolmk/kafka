@@ -2028,6 +2028,7 @@ kafka.log.remote.RemoteLogManagerTest:
 - testRemoteLogMetadataManagerWithUserDefinedConfigs
 - testRemoteLogSizeRetentionShouldFilterOutCopySegmentStartState
 - testRemoteLogTaskUpdateRemoteLogSegmentMetadataAfterLogDirChanged
+- testRemoteReadFetchDataInfo
 - testRemoteSegmentWithinLeaderEpochs
 - testRemoteSegmentWithinLeaderEpochsForOverlappingSegments
 - testRemoteSizeData
