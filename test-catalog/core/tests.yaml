@@ -213,12 +213,10 @@ kafka.admin.DeleteTopicTest:
 - testDeleteTopicDuringAddPartition
 - testDeleteTopicWithAllAliveReplicas
 - testDeleteTopicWithCleaner
-- testDeletingPartiallyDeletedTopic
 - testDisableDeleteTopic
 - testIncreasePartitionCountDuringDeleteTopic
 - testPartitionReassignmentDuringDeleteTopic
 - testRecreateTopicAfterDeletion
-- testResumeDeleteTopicOnControllerFailover
 - testResumeDeleteTopicWithRecoveredFollower
 kafka.admin.ListOffsetsIntegrationTest:
 - testListMaxTimestampWithEmptyLog
