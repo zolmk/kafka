@@ -3939,6 +3939,11 @@ kafka.server.share.SharePartitionTest:
 - testMaxDeliveryCountLimitExceededForRecordsSubsetCacheCleared
 - testMaybeAcquireAndReleaseFetchLock
 - testMaybeInitialize
+- testMaybeInitializeDefaultStartEpochGroupConfigNotPresent
+- testMaybeInitializeDefaultStartEpochGroupConfigReturnsEarliest
+- testMaybeInitializeDefaultStartEpochGroupConfigReturnsLatest
+- testMaybeInitializeFetchOffsetForEarliestTimestampThrowsError
+- testMaybeInitializeFetchOffsetForLatestTimestampThrowsError
 - testMaybeInitializeSharePartitionAgain
 - testMaybeInitializeSharePartitionAgainConcurrentRequests
 - testMaybeInitializeWhenReadStateRpcReturnsZeroAvailableRecords
@@ -4027,6 +4032,10 @@ kafka.test.api.ShareConsumerTest:
 - testMultipleConsumersWithDifferentGroupIds
 - testPollNoSubscribeFails
 - testPollThrowsInterruptExceptionIfInterrupted
+- testShareAutoOffsetResetDefaultValue
+- testShareAutoOffsetResetEarliest
+- testShareAutoOffsetResetEarliestAfterLsoMovement
+- testShareAutoOffsetResetMultipleGroupsWithDifferentValue
 - testSubscribeAndPollNoRecords
 - testSubscribeOnInvalidTopicThrowsInvalidTopicException
 - testSubscribePollSubscribe
