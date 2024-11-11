@@ -2785,11 +2785,6 @@ kafka.server.FetchFromFollowerIntegrationTest:
 - testFetchFromLeaderWhilePreferredReadReplicaIsUnavailable
 - testFollowerCompleteDelayedFetchesOnReplication
 - testRackAwareRangeAssignor
-kafka.server.FetchRequestBetweenDifferentIbpTest:
-- testControllerNewIBP
-- testControllerNewToOldIBP
-- testControllerOldIBP
-- testControllerOldToNewIBP
 kafka.server.FetchRequestDownConversionConfigTest:
 - testLatestFetchWithDownConversionDisabled
 - testV12WithDownConversionDisabled
@@ -2814,10 +2809,6 @@ kafka.server.FetchRequestTest:
 - testLastFetchedEpochValidationV12
 - testZStdCompressedRecords
 - testZStdCompressedTopic
-kafka.server.FetchRequestTestDowngrade:
-- testTopicIdIsRemovedFromFetcherWhenControllerDowngrades
-kafka.server.FetchRequestWithLegacyMessageFormatTest:
-- testFetchRequestV2WithOversizedMessage
 kafka.server.FetchSessionTest:
 - testCachedLeaderEpoch
 - testCachedPartitionEqualsAndHashCode
@@ -3290,8 +3281,6 @@ kafka.server.KafkaConfigTest:
 - testVersionConfiguration
 - testZookeeperConnectNotRequiredIfNonEmptyProcessRoles
 - testZookeeperConnectRequiredIfEmptyProcessRoles
-kafka.server.KafkaMetricReporterClusterIdTest:
-- testClusterIdPresent
 kafka.server.KafkaMetricReporterExceptionHandlingTest:
 - testBothReportersAreInvoked
 kafka.server.KafkaMetricsReporterTest:
@@ -3415,8 +3404,6 @@ kafka.server.MetadataCacheTest:
 - transformUMRWithMissingBar
 - transformUMRWithNoChanges
 - transformUMRWithRecreatedBar
-kafka.server.MetadataRequestBetweenDifferentIbpTest:
-- testUnknownTopicId
 kafka.server.MetadataRequestTest:
 - testAliveBrokersWithNoTopics
 - testAllTopicsRequest
