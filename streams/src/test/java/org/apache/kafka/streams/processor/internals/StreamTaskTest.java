@@ -1778,7 +1778,18 @@ public class StreamTaskTest {
     }
 
     @Test
-    public void shouldReturnOffsetsForRepartitionTopicsForPurging() {
+    public void shouldReturnCommittedOffsetsForRepartitionTopicsForPurging() {
+        final Map<TopicPartition, Long> purgeableOffsets = doReturnPurgeableOffsets(true);
+        assertThat(purgeableOffsets, equalTo(singletonMap(new TopicPartition("repartition", 1), 10L)));
+    }
+
+    @Test
+    public void shouldReturnEmptyMapWhenNoCommitForRepartitionTopicsForPurging() {
+        final Map<TopicPartition, Long> purgeableOffsets = doReturnPurgeableOffsets(false);
+        assertThat(purgeableOffsets, equalTo(Collections.emptyMap()));
+    }
+
+    private Map<TopicPartition, Long> doReturnPurgeableOffsets(final boolean doCommit) {
         final TopicPartition repartition = new TopicPartition("repartition", 1);
 
         final ProcessorTopology topology = withRepartitionTopics(
@@ -1813,7 +1824,7 @@ public class StreamTaskTest {
             context,
             logContext,
             false
-            );
+        );
 
         task.initializeIfNeeded();
         task.completeRestoration(noOpResetter -> { });
@@ -1828,10 +1839,11 @@ public class StreamTaskTest {
         assertTrue(task.process(0L));
 
         task.prepareCommit();
+        if (doCommit) {
+            task.updateCommittedOffsets(repartition, 10L);
+        }
 
-        final Map<TopicPartition, Long> map = task.purgeableOffsets();
-
-        assertThat(map, equalTo(singletonMap(repartition, 11L)));
+        return task.purgeableOffsets();
     }
 
     @Test
