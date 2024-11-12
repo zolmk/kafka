@@ -2324,7 +2324,6 @@ kafka.server.AlterUserScramCredentialsRequestNotAuthorizedTest:
 kafka.server.AlterUserScramCredentialsRequestTest:
 - testAlterAndDescribe
 - testAlterEmptyUser
-- testAlterNotController
 - testAlterNothing
 - testAlterSameThingTwice
 - testAlterTooFewIterations
