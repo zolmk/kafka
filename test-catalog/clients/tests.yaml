@@ -2390,6 +2390,7 @@ org.apache.kafka.clients.producer.RecordSendTest:
 org.apache.kafka.clients.producer.RoundRobinPartitionerTest:
 - testRoundRobinWithKeyBytes
 - testRoundRobinWithNullKeyBytes
+- testRoundRobinWithNullKeyBytesAndEvenPartitionCount
 - testRoundRobinWithUnavailablePartitions
 org.apache.kafka.clients.producer.UniformStickyPartitionerTest:
 - testRoundRobinWithKeyBytes
