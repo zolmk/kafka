@@ -1969,6 +1969,7 @@ kafka.log.remote.RemoteLogManagerTest:
 - testLogStartOffsetUpdatedOnStartup
 - testMetricsUpdateOnCopyLogSegmentsFailure
 - testOnLeadershipChangeWillInvokeHandleLeaderOrFollowerPartitions
+- testRLMOpsWhenMetadataIsNotReady
 - testRLMShutdownDuringQuotaExceededScenario
 - testRLMTaskDoesNotUploadSegmentsWhenRemoteLogMetadataManagerIsNotInitialized
 - testReadForFirstBatchInLogCompaction
