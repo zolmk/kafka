@@ -200,6 +200,7 @@ org.apache.kafka.coordinator.group.GroupMetadataManagerTest:
 - testConsumerGroupMaybeDelete
 - testConsumerGroupMemberEpochValidation
 - testConsumerGroupMemberEpochValidationForStaticMember
+- testConsumerGroupMemberPicksUpExistingResolvedRegularExpression
 - testConsumerGroupMemberUsingClassicProtocolBatchLeaveGroup
 - testConsumerGroupMemberUsingClassicProtocolBatchLeaveGroupUpdatingSubscriptionMetadata
 - testConsumerGroupMemberUsingClassicProtocolFencedWhenJoinTimeout
@@ -629,11 +630,11 @@ org.apache.kafka.coordinator.group.modern.SubscribedTopicMetadataTest:
 org.apache.kafka.coordinator.group.modern.TargetAssignmentBuilderTest:
 - testAssignmentHasNotChanged
 - testAssignmentSwapped
-- testCreateMemberSubscriptionSpecImpl
 - testDeleteMember
 - testEmpty
 - testNewMember
 - testPartialAssignmentUpdate
+- testRegularExpressions
 - testReplaceStaticMember
 - testUpdateMember
 org.apache.kafka.coordinator.group.modern.TopicIdsTest:
@@ -653,6 +654,15 @@ org.apache.kafka.coordinator.group.modern.TopicMetadataTest:
 - testEquals
 - testFromRecord
 - testTopicIdAndNameCannotBeNull
+org.apache.kafka.coordinator.group.modern.UnionSetTest:
+- testContains
+- testEquals
+- testIsEmpty
+- testSetsCannotBeNull
+- testSize
+- testToArray
+- testToArrayWithArrayParameter
+- testUnion
 org.apache.kafka.coordinator.group.modern.consumer.ConsumerGroupMemberTest:
 - testAsConsumerGroupDescribeMember
 - testAsConsumerGroupDescribeWithTargetAssignmentNull
