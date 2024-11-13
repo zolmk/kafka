@@ -119,6 +119,7 @@ org.apache.kafka.clients.NetworkClientTest:
 - testLeastLoadedNode
 - testLeastLoadedNodeConsidersThrottledConnections
 - testLeastLoadedNodeProvideDisconnectedNodesPrioritizedByLastConnectionTimestamp
+- testRebootstrap
 - testReconnectAfterAddressChange
 - testRequestTimeout
 - testSendToUnreadyNode
@@ -453,6 +454,7 @@ org.apache.kafka.clients.admin.internals.AdminMetadataManagerTest:
 - testAuthenticationFailure
 - testMetadataReady
 - testMetadataRefreshBackoff
+- testNeedsRebootstrap
 - testSetUsingBootstrapControllers
 org.apache.kafka.clients.admin.internals.AllBrokersStrategyIntegrationTest:
 - testFatalFulfillmentError
