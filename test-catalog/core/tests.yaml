@@ -562,6 +562,7 @@ kafka.api.PlaintextConsumerSubscriptionTest:
 - testUnsubscribeTopic
 kafka.api.PlaintextConsumerTest:
 - testAutoOffsetReset
+- testCloseLeavesGroupOnInterrupt
 - testClusterResourceListener
 - testConsumeMessagesWithCreateTime
 - testConsumeMessagesWithLogAppendTime
