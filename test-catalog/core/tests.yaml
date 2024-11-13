@@ -2683,7 +2683,6 @@ kafka.server.DynamicBrokerConfigTest:
 - testUpdateMetricReporters
 - testUpdateMetricReportersNoJmxReporter
 kafka.server.DynamicBrokerReconfigurationTest:
-- executionError
 - testAddRemoveSaslListeners
 - testAddRemoveSslListener
 - testAdvertisedListenerUpdate
@@ -2738,7 +2737,10 @@ kafka.server.EdgeCaseRequestTest:
 - testMalformedHeaderRequest
 - testProduceRequestWithNullClientId
 kafka.server.FetchFromFollowerIntegrationTest:
-- initializationError
+- testFetchFromFollowerWithRoll
+- testFetchFromLeaderWhilePreferredReadReplicaIsUnavailable
+- testFollowerCompleteDelayedFetchesOnReplication
+- testRackAwareRangeAssignor
 kafka.server.FetchRequestDownConversionConfigTest:
 - testLatestFetchWithDownConversionDisabled
 - testV12WithDownConversionDisabled
@@ -2746,7 +2748,7 @@ kafka.server.FetchRequestDownConversionConfigTest:
 - testV1FetchFromReplica
 - testV1FetchWithDownConversionDisabled
 kafka.server.FetchRequestMaxBytesTest:
-- initializationError
+- testConsumeMultipleRecords
 kafka.server.FetchRequestTest:
 - testBrokerRespectsPartitionsOrderAndSizeLimits
 - testCreateIncrementalFetchWithPartitionsInErrorV12
@@ -3292,7 +3294,10 @@ kafka.server.ListGroupsRequestTest:
 - testListGroupsWithOldConsumerGroupProtocolAndNewGroupCoordinator
 - testListGroupsWithOldConsumerGroupProtocolAndOldGroupCoordinator
 kafka.server.ListOffsetsRequestTest:
-- initializationError
+- testCurrentEpochValidation
+- testListOffsetsErrorCodes
+- testResponseDefaultOffsetAndLeaderEpochForAllVersions
+- testResponseIncludesLeaderEpoch
 kafka.server.ListOffsetsRequestWithRemoteStoreTest:
 - testCurrentEpochValidation
 - testListOffsetsErrorCodes
@@ -3304,11 +3309,27 @@ kafka.server.LocalLeaderEndPointTest:
 - testFetchEpochEndOffsets
 - testFetchLatestOffset
 kafka.server.LogDirFailureTest:
-- initializationError
+- testIOExceptionDuringCheckpoint
+- testIOExceptionDuringLogRoll
+- testLogDirNotificationTimeout
+- testProduceErrorFromFailureOnCheckpoint
+- testProduceErrorFromFailureOnLogRoll
+- testReplicaFetcherThreadAfterLogDirFailureOnFollower
+- testZkBrokerWithOldInterBrokerProtocolShouldHaltOnLogDirFailure
 kafka.server.LogManagerIntegrationTest:
 - testRestartBrokerNoErrorIfMissingPartitionMetadata
 kafka.server.LogOffsetTest:
-- initializationError
+- testEmptyLogsGetOffsets
+- testFetchOffsetByTimestampForMaxTimestampAfterTruncate
+- testFetchOffsetByTimestampForMaxTimestampWithEmptyLog
+- testFetchOffsetByTimestampForMaxTimestampWithUnorderedTimestamps
+- testFetchOffsetsBeforeWithChangingSegmentSize
+- testFetchOffsetsBeforeWithChangingSegments
+- testGetOffsetsAfterDeleteRecords
+- testGetOffsetsBeforeEarliestTime
+- testGetOffsetsBeforeLatestTime
+- testGetOffsetsBeforeNow
+- testGetOffsetsForUnknownTopic
 kafka.server.LogRecoveryTest:
 - testHWCheckpointNoFailuresMultipleLogSegments
 - testHWCheckpointNoFailuresSingleLogSegment
@@ -3340,7 +3361,21 @@ kafka.server.MetadataCacheTest:
 - transformUMRWithNoChanges
 - transformUMRWithRecreatedBar
 kafka.server.MetadataRequestTest:
-- initializationError
+- testAliveBrokersWithNoTopics
+- testAllTopicsRequest
+- testAutoCreateOfCollidingTopics
+- testAutoCreateTopicWithInvalidReplicationFactor
+- testAutoTopicCreation
+- testClusterIdIsValid
+- testClusterIdWithRequestVersion1
+- testControllerId
+- testIsInternal
+- testIsrAfterBrokerShutDownAndJoinsBack
+- testNoTopicsRequest
+- testPreferredReplica
+- testRack
+- testReplicaDownResponse
+- testTopicIdsInResponse
 kafka.server.MetadataVersionConfigValidatorTest:
 - testInvokesFaultHandlerOnException
 - testValidatesConfigOnMetadataChange
@@ -3349,7 +3384,7 @@ kafka.server.MetadataVersionIntegrationTest:
 - testDefaultIsLatestVersion
 - testUpgradeSameVersion
 kafka.server.MultipleListenersWithAdditionalJaasContextTest:
-- initializationError
+- testProduceConsume
 kafka.server.MultipleListenersWithDefaultJaasContextTest:
 - testProduceConsume
 kafka.server.NodeToControllerRequestThreadTest:
@@ -3381,7 +3416,8 @@ kafka.server.OffsetFetchRequestTest:
 - testSingleGroupOffsetFetchWithOldConsumerGroupProtocolAndNewGroupCoordinator
 - testSingleGroupOffsetFetchWithOldConsumerGroupProtocolAndOldGroupCoordinator
 kafka.server.OffsetsForLeaderEpochRequestTest:
-- initializationError
+- testCurrentEpochValidation
+- testOffsetsForLeaderEpochErrorCodes
 kafka.server.PermissiveControllerMutationQuotaTest:
 - testControllerMutationQuotaViolation
 kafka.server.ProduceRequestTest:
@@ -3573,9 +3609,16 @@ kafka.server.ReplicationQuotaManagerTest:
 - shouldSupportWildcardThrottledReplicas
 - shouldThrottleOnlyDefinedReplicas
 kafka.server.ReplicationQuotasTest:
-- initializationError
+- shouldBootstrapTwoBrokersWithFollowerThrottle
+- shouldBootstrapTwoBrokersWithLeaderThrottle
+- shouldThrottleOldSegments
 kafka.server.RequestQuotaTest:
-- initializationError
+- testExemptRequestTime
+- testResponseThrottleTime
+- testResponseThrottleTimeWhenBothFetchAndRequestQuotasViolated
+- testResponseThrottleTimeWhenBothProduceAndRequestQuotasViolated
+- testUnauthorizedThrottle
+- testUnthrottledClient
 kafka.server.SaslApiVersionsRequestTest:
 - testApiVersionsRequestAfterSaslHandshakeRequest
 - testApiVersionsRequestBeforeSaslHandshakeRequest
@@ -3583,7 +3626,13 @@ kafka.server.SaslApiVersionsRequestTest:
 kafka.server.ServerMetricsTest:
 - testMetricsConfig
 kafka.server.ServerShutdownTest:
-- initializationError
+- testCleanShutdown
+- testCleanShutdownAfterFailedStartup
+- testCleanShutdownWithZkUnavailable
+- testConsecutiveShutdown
+- testControllerShutdownDuringSend
+- testNoCleanShutdownAfterFailedStartupDueToCorruptLogs
+- testShutdownWithKRaftControllerUnavailable
 kafka.server.ServerTest:
 - testCreateSelfManagedKafkaMetricsContext
 - testCreateZkKafkaMetricsContext
@@ -3681,7 +3730,9 @@ kafka.server.epoch.LeaderEpochFileCacheTest:
 - testGetEpochEntry
 - testPreviousEpoch
 kafka.server.epoch.LeaderEpochIntegrationTest:
-- initializationError
+- shouldAddCurrentLeaderEpochToMessagesAsTheyAreWrittenToLeader
+- shouldIncreaseLeaderEpochBetweenLeaderRestarts
+- shouldSendLeaderEpochRequestAndGetAResponse
 kafka.server.epoch.OffsetsForLeaderEpochTest:
 - shouldGetEpochsFromReplica
 - shouldReturnNoLeaderForPartitionIfThrown
