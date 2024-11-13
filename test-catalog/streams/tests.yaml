@@ -421,10 +421,14 @@ org.apache.kafka.streams.internals.metrics.ClientMetricsTest:
 - shouldAddVersionMetric
 - shouldGetFailedStreamThreadsSensor
 org.apache.kafka.streams.internals.metrics.StreamsClientMetricsDelegatingReporterTest:
-- Should
+- metricRemoval
+- shouldInitMetrics
+- shouldRegisterCorrectMetrics
 org.apache.kafka.streams.internals.metrics.StreamsThreadMetricsDelegatingReporterTest:
-- Init
-- Should
+- shouldInitMetrics
+- shouldNotRegisterMetricsWithoutThreadIdTag
+- shouldRegisterMetrics
+- shouldRemoveMetrics
 org.apache.kafka.streams.kstream.JoinWindowsTest:
 - afterShouldNotModifyGrace
 - beforeShouldNotModifyGrace
@@ -1105,7 +1109,8 @@ org.apache.kafka.streams.kstream.internals.KStreamMapValuesTest:
 - testFlatMapValues
 - testMapValuesWithKeys
 org.apache.kafka.streams.kstream.internals.KStreamNewProcessorApiTest:
-- Should
+- shouldGetStateStoreWithConnectedStoreProvider
+- shouldGetStateStoreWithStreamBuilder
 org.apache.kafka.streams.kstream.internals.KStreamPeekTest:
 - shouldNotAllowNullAction
 - shouldObserveStreamElements
@@ -3548,9 +3553,9 @@ org.apache.kafka.streams.query.PositionTest:
 - shouldNotMatchOnUnEqual
 - shouldUpdateComponentMonotonically
 org.apache.kafka.streams.query.StateQueryResultTest:
-- More
-- Valid
-- Zero
+- getOnlyPartitionResultMultipleResults
+- getOnlyPartitionResultNoResultsTest
+- getOnlyPartitionResultWithSingleResultTest
 org.apache.kafka.streams.query.VersionedKeyQueryTest:
 - shouldThrowNPEWithNullAsOftimestamp
 - shouldThrowNPEWithNullKey

@@ -816,12 +816,12 @@ org.apache.kafka.clients.consumer.OffsetAndMetadataTest:
 - testInvalidNegativeOffset
 - testSerializationRoundtrip
 org.apache.kafka.clients.consumer.RangeAssignorTest:
-- rackConfig
 - testCoPartitionedAssignmentWithSameSubscription
 - testMultipleConsumersMixedTopics
 - testOneConsumerMultipleTopics
 - testOneConsumerNoTopic
 - testOneConsumerNonexistentTopic
+- testOneConsumerOneTopic
 - testOneStaticConsumerAndOneDynamicConsumerTwoTopicsSixPartitions
 - testOnlyAssignsPartitionsFromSubscribedTopics
 - testRackAwareAssignmentWithCoPartitioning
@@ -3230,7 +3230,9 @@ org.apache.kafka.common.metrics.stats.RateTest:
 - testRateIsConsistentAfterTheFirstWindow
 - testRateWithNoPriorAvailableSamples
 org.apache.kafka.common.metrics.stats.SampledStatTest:
-- Sample
+- testSampleIsKeptIfOverlaps
+- testSampleIsKeptIfOverlapsAndExtra
+- testSampleIsPurgedIfDoesntOverlap
 org.apache.kafka.common.network.ChannelBuildersTest:
 - testChannelBuilderConfigs
 - testCreateConfigurableKafkaPrincipalBuilder
@@ -3353,7 +3355,7 @@ org.apache.kafka.common.network.SslTransportTls12Tls13Test:
 - testCiphersSuiteForTls12FailsForTls13
 - testCiphersSuiteForTls13
 org.apache.kafka.common.network.SslVersionsTransportLayerTest:
-- tlsServerProtocol
+- testTlsDefaults
 org.apache.kafka.common.network.Tls12SelectorTest:
 - registerFailure
 - testBytesBufferedChannelAfterMute
@@ -3616,7 +3618,7 @@ org.apache.kafka.common.record.FileRecordsTest:
 - testTruncateNotCalledIfSizeIsBiggerThanTargetSize
 - testTruncateNotCalledIfSizeIsSameAsTargetSize
 org.apache.kafka.common.record.LazyDownConversionRecordsTest:
-- compressionType
+- testConversion
 - testConversionOfCommitMarker
 org.apache.kafka.common.record.LegacyRecordTest:
 - testChecksum
