@@ -3787,6 +3787,7 @@ kafka.server.share.SharePartitionManagerTest:
 - testCachedTopicPartitionsForValidShareSessions
 - testCachedTopicPartitionsWithNoTopicPartitions
 - testCloseSharePartitionManager
+- testDelayedInitializationShouldCompleteFetchRequest
 - testGetErroneousAndValidTopicIdPartitions
 - testMultipleConcurrentShareFetches
 - testMultipleSequentialShareFetches
