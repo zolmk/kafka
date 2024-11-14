@@ -1943,6 +1943,7 @@ kafka.log.remote.RemoteLogManagerTest:
 - testDeleteLogSegmentDueToRetentionSizeBreach
 - testDeleteLogSegmentDueToRetentionTimeBreach
 - testDeleteRetentionMsBeingCancelledBeforeSecondDelete
+- testDeleteRetentionMsBiggerThanTimeMs
 - testDeleteRetentionMsOnExpiredSegment
 - testDeletionOnOverlappingRetentionBreachedSegments
 - testDeletionOnRetentionBreachedSegments
