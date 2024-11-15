@@ -390,6 +390,8 @@ kafka.api.EndToEndClusterIdTest:
 - testEndToEnd
 kafka.api.GroupAuthorizerIntegrationTest:
 - testAuthorizedProduceAndConsume
+- testConsumeCloseWithoutGroupPermission
+- testConsumeUnsubscribeWithoutGroupPermission
 - testUnauthorizedProduceAndConsume
 kafka.api.GroupCoordinatorIntegrationTest:
 - testCoordinatorFailoverAfterCompactingPartitionWithConsumerGroupDeleted
