@@ -442,10 +442,12 @@ kafka.api.PlaintextAdminIntegrationTest:
 - testCreateTopicsReturnsConfigs
 - testDelayedClose
 - testDeleteConsumerGroupOffsets
+- testDeleteRecordsAfterCorruptRecords
 - testDeleteRecordsWithException
 - testDeleteTopicsWithIds
 - testDeleteTopicsWithOptionTimeoutMs
 - testDescribeAndAlterConfigs
+- testDescribeClassicGroups
 - testDescribeCluster
 - testDescribeConfigWithOptionTimeoutMs
 - testDescribeConfigsForLog4jLogLevels
@@ -486,6 +488,7 @@ kafka.api.PlaintextAdminIntegrationTest:
 - testInvalidIncrementalAlterConfigs
 - testListClientMetricsResources
 - testListClientMetricsResourcesTimeoutMs
+- testListGroups
 - testListNodes
 - testListReassignmentsDoesNotShowDeletedPartitions
 - testListReassignmentsDoesNotShowNonReassigningPartitions

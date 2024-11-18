@@ -152,6 +152,7 @@ org.apache.kafka.tools.GetOffsetShellTest:
 - testTopicPatternArg
 - testTopicPatternArgWithPartitionsArg
 org.apache.kafka.tools.GroupsCommandTest:
+- testGroupCommand
 - testListGroups
 - testListGroupsConsumerFilter
 - testListGroupsEmpty
