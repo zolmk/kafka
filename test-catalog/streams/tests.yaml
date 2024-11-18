@@ -415,7 +415,9 @@ org.apache.kafka.streams.internals.ApiUtilsTest:
 org.apache.kafka.streams.internals.metrics.ClientMetricsTest:
 - shouldAddAliveStreamThreadsMetric
 - shouldAddApplicationIdMetric
+- shouldAddClientStateTelemetryMetric
 - shouldAddCommitIdMetric
+- shouldAddRecordingLevelMetric
 - shouldAddStateMetric
 - shouldAddTopologyDescriptionMetric
 - shouldAddVersionMetric
@@ -3468,6 +3470,8 @@ org.apache.kafka.streams.processor.internals.metrics.TaskMetricsTest:
 - shouldGetTotalCacheSizeInBytesSensor
 org.apache.kafka.streams.processor.internals.metrics.ThreadMetricsTest:
 - shouldAddThreadStartTimeMetric
+- shouldAddThreadStateJmxMetric
+- shouldAddThreadStateTelemetryMetric
 - shouldAddTotalBlockedTimeMetric
 - shouldGetCloseTaskSensor
 - shouldGetCommitRatioSensor
