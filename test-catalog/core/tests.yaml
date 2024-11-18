@@ -796,7 +796,7 @@ kafka.api.TransactionsBounceTest:
 - testWithGroupId
 - testWithGroupMetadata
 kafka.api.TransactionsExpirationTest:
-- testBumpTransactionalEpochAfterInvalidProducerIdMapping
+- testFatalErrorAfterInvalidProducerIdMapping
 - testTransactionAfterProducerIdExpires
 kafka.api.TransactionsTest:
 - testAbortTransactionTimeout
