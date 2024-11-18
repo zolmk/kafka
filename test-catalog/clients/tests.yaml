@@ -578,6 +578,12 @@ org.apache.kafka.clients.admin.internals.ListTransactionsHandlerTest:
 - testCoordinatorLoadingErrorIsRetriable
 - testHandleResponseWithFatalErrors
 - testHandleSuccessfulResponse
+org.apache.kafka.clients.admin.internals.PartitionLeaderStrategyIntegrationTest:
+- testCachingOverlappingRequests
+- testCachingRepeatedRequest
+- testFatalLookupError
+- testNotLeaderFulfillmentError
+- testRetryLookupAfterDisconnect
 org.apache.kafka.clients.admin.internals.PartitionLeaderStrategyTest:
 - testBuildLookupRequest
 - testIgnoreUnrequestedPartitions
@@ -2384,6 +2390,7 @@ org.apache.kafka.clients.producer.ProducerConfigTest:
 - testInvalidCompressionType
 - testInvalidMetadataRecoveryStrategy
 - testInvalidSecurityProtocol
+- testUpperboundCheckOfEnableIdempotence
 org.apache.kafka.clients.producer.ProducerRecordTest:
 - testEqualsAndHashCode
 - testInvalidRecords
