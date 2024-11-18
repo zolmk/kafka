@@ -1135,6 +1135,8 @@ org.apache.kafka.clients.consumer.internals.ConsumerHeartbeatRequestManagerTest:
 - testHeartbeatNotSentIfAnotherOneInFlight
 - testHeartbeatOnStartup
 - testHeartbeatOutsideInterval
+- testHeartbeatRequestFailureNotifiedToGroupManagerAfterErrorPropagated
+- testHeartbeatResponseErrorNotifiedToGroupManagerAfterErrorPropagated
 - testHeartbeatResponseOnErrorHandling
 - testHeartbeatState
 - testNetworkTimeout
