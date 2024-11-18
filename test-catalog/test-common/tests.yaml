@@ -5,6 +5,7 @@ org.apache.kafka.common.test.KafkaClusterTestKitTest:
 - testCreateClusterWithBadNumOfControllers
 - testCreateClusterWithBadPerServerProperties
 - testCreateClusterWithSpecificBaseDir
+- testExposedFaultHandlers
 org.apache.kafka.common.test.KafkaClusterThreadFactoryTest:
 - testGetThreadIds
 org.apache.kafka.common.test.TestKitNodeTest:

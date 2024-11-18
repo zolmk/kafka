@@ -1986,6 +1986,7 @@ org.apache.kafka.clients.consumer.internals.ShareConsumeRequestManagerTest:
 - testMultipleTopicsFetchError
 - testParseInvalidRecordBatch
 - testPendingCommitAsyncBeforeCommitSync
+- testPiggybackAcknowledgementsInFlight
 - testRetryAcknowledgements
 - testRetryAcknowledgementsWithLeaderChange
 - testShareFetchWithSubscriptionChange
