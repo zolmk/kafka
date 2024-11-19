@@ -1,3 +1,9 @@
+org.apache.kafka.coordinator.common.runtime.CoordinatorExecutorImplTest:
+- testTaskCancelledAfterBeingExecutedButBeforeWriteOperationIsExecuted
+- testTaskCancelledBeforeBeingExecuted
+- testTaskFailedLifecycle
+- testTaskSchedulingWriteOperationFailed
+- testTaskSuccessfulLifecycle
 org.apache.kafka.coordinator.common.runtime.CoordinatorRecordTest:
 - testAttributes
 - testEquals
@@ -19,6 +25,7 @@ org.apache.kafka.coordinator.common.runtime.CoordinatorRuntimeTest:
 - testCancelTimer
 - testClose
 - testCoordinatorCompleteTransactionEventWriteTimeoutTaskIsCancelledWhenHighWatermarkIsUpdated
+- testCoordinatorExecutor
 - testHighWatermarkUpdate
 - testNonRetryableTimer
 - testOnNewMetadataImage

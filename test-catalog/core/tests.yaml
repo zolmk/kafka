@@ -429,6 +429,7 @@ kafka.api.PlaintextAdminIntegrationTest:
 - testClose
 - testConsumeAfterDeleteRecords
 - testConsumerGroups
+- testConsumerGroupsDeprecatedConsumerGroupState
 - testCreateDeleteTopics
 - testCreateExistingTopicsThrowTopicExistsException
 - testCreatePartitionWithOptionRetryOnQuotaViolation

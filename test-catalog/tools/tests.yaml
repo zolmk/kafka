@@ -587,11 +587,11 @@ org.apache.kafka.tools.consumer.group.SaslClientsWithInvalidCredentialsTest:
 org.apache.kafka.tools.consumer.group.ShareGroupCommandTest:
 - testDescribeShareGroups
 - testDescribeShareGroupsGetOffsets
+- testGroupStatesFromString
 - testListShareGroups
 - testListShareGroupsWithStates
 - testListWithUnrecognizedOption
 - testPrintEmptyGroupState
-- testShareGroupStatesFromString
 org.apache.kafka.tools.consumer.group.share.ShareGroupStateMessageFormatterTest:
 - testShareGroupStateMessageFormatter
 - testShareGroupStateMessageFormatterException
