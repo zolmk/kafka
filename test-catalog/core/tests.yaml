@@ -337,8 +337,6 @@ kafka.api.ConsumerBounceTest:
 - testClose
 - testCloseDuringRebalance
 - testConsumerReceivesFatalExceptionWhenGroupPassesMaxSize
-- testConsumptionWithBrokerFailures
-- testRollingBrokerRestartsWithSmallerMaxGroupSizeConfigDisruptsBigGroup
 - testSeekAndCommitWithBrokerFailures
 - testSubscribeWhenTopicUnavailable
 kafka.api.ConsumerRebootstrapTest:
@@ -382,10 +380,6 @@ kafka.api.DelegationTokenEndToEndAuthorizationWithOwnerTest:
 - testProduceConsumeViaSubscribe
 - testProduceConsumeWithPrefixedAcls
 - testProduceConsumeWithWildcardAcls
-kafka.api.DescribeAuthorizedOperationsTest:
-- testClusterAuthorizedOperations
-- testConsumerGroupAuthorizedOperations
-- testTopicAuthorizedOperations
 kafka.api.EndToEndClusterIdTest:
 - testEndToEnd
 kafka.api.GroupAuthorizerIntegrationTest:
@@ -2069,71 +2063,31 @@ kafka.network.RequestConvertToJsonTest:
 - testRequestHeaderNode
 - testRequestHeaderNodeWithDeprecatedApiVersion
 kafka.network.SocketServerTest:
-- closingChannelSendFailure
-- closingChannelWithBufferedReceives
-- closingChannelWithBufferedReceivesFailedSend
-- closingChannelWithCompleteAndIncompleteBufferedReceives
-- configureNewConnectionException
 - controlThrowable
-- idleExpiryWithBufferedReceives
-- pollException
-- processCompletedReceiveException
-- processCompletedSendException
-- processDisconnectedException
-- processNewResponseException
 - remoteCloseSendFailure
-- remoteCloseWithBufferedReceives
 - remoteCloseWithBufferedReceivesFailedSend
-- remoteCloseWithCompleteAndIncompleteBufferedReceives
-- remoteCloseWithIncompleteBufferedReceive
-- remoteCloseWithoutBufferedReceives
-- sendCancelledKeyException
 - simpleRequest
-- testAcceptorStartOpensPortIfNeeded
 - testAuthorizerFailureCausesEnableRequestProcessingFailure
 - testBrokerSendAfterChannelClosedUpdatesRequestMetrics
 - testClientDisconnectionUpdatesRequestMetrics
 - testClientDisconnectionWithOutstandingReceivesProcessedUntilFailedSend
-- testClientInformationWithLatestApiVersionsRequest
 - testClientInformationWithOldestApiVersionsRequest
 - testConnectionDisconnectListenerInvokedOnClose
 - testConnectionId
 - testConnectionIdReuse
-- testConnectionRateLimit
-- testConnectionRatePerIp
-- testControlPlaneAsPrivilegedListener
 - testControlPlaneTakePrecedenceOverInterBrokerListenerAsPrivilegedListener
-- testDisabledRequestIsRejected
 - testExceptionInAcceptor
-- testFailedAcceptorStartupCausesEnableRequestProcessingFailure
 - testGracefulClose
 - testIdleConnection
-- testInterBrokerListenerAsPrivilegedListener
 - testLatencyWithBufferedDataAndNoSocketData
-- testListenBacklogSize
 - testMaxConnectionsPerIp
-- testMaxConnectionsPerIpOverrides
-- testMetricCollectionAfterShutdown
 - testNoOpAction
-- testNoOpActionResponseWithThrottledChannelWhereThrottlingAlreadyDone
-- testNoOpActionResponseWithThrottledChannelWhereThrottlingInProgress
 - testProcessorMetricsTags
 - testRequestMetricsAfterStop
 - testRequestPerSecAndDeprecatedRequestsPerSecMetrics
 - testSaslReauthenticationFailureNoKip152SaslAuthenticate
-- testSaslReauthenticationFailureWithKip152SaslAuthenticate
 - testSendActionResponseWithThrottledChannelWhereThrottlingAlreadyDone
 - testSendActionResponseWithThrottledChannelWhereThrottlingInProgress
-- testServerShutdownWithoutEnable
-- testSessionPrincipal
-- testSocketsCloseOnShutdown
-- testSslSocketServer
-- testStagedListenerShutdownWhenConnectionQueueIsFull
-- testStagedListenerStartup
-- testThrottledSocketsClosedOnShutdown
-- testUnmuteChannelWithBufferedReceives
-- testZeroMaxConnectionsPerIp
-- tooBigRequestIsRejected
 kafka.raft.KafkaMetadataLogTest:
 - testAdvanceLogStartOffsetAfterCleaning
 - testCleanupOlderSnapshots
@@ -2264,35 +2218,8 @@ kafka.server.AbstractFetcherThreadTest:
 - testUnknownLeaderEpochInTruncation
 - testUnknownLeaderEpochWhileFetching
 kafka.server.AbstractFetcherThreadWithIbp26Test:
-- testConsumerLagRemovedWithPartition
-- testCorruptMessage
-- testDelay
-- testDivergingEpochs
-- testFencedFetch
-- testFencedOffsetResetAfterOutOfRange
-- testFencedTruncation
-- testFetcherThreadHandlingPartitionFailureDuringAppending
-- testFetcherThreadHandlingPartitionFailureDuringTruncation
-- testFollowerFetchOutOfRangeHigh
-- testFollowerFetchOutOfRangeLow
-- testLeaderEpochChangeDuringFencedFetchEpochsFromLeader
-- testLeaderEpochChangeDuringSuccessfulFetchEpochsFromLeader
-- testMaybeUpdateTopicIds
-- testMetricsRemovedOnShutdown
-- testPartitionsInError
-- testRetryAfterUnknownLeaderEpochInLatestOffsetFetch
 - testSimpleFetch
-- testTruncateOnFetchDoesNotProcessPartitionData
-- testTruncateToEpochEndOffsetsDuringRemovePartitions
-- testTruncateToHighWatermarkDuringRemovePartitions
 - testTruncateToHighWatermarkIfLeaderEpochInfoNotAvailable
-- testTruncateToHighWatermarkIfLeaderEpochRequestNotSupported
-- testTruncation
-- testTruncationOnFetchSkippedIfPartitionRemoved
-- testTruncationSkippedIfNoEpochChange
-- testTruncationThrowsExceptionIfLeaderReturnsPartitionsNotRequestedInFetchEpochs
-- testUnknownLeaderEpochInTruncation
-- testUnknownLeaderEpochWhileFetching
 kafka.server.AddPartitionsToTxnManagerTest:
 - testAddPartitionsToTxnHandlerErrorHandling
 - testAddPartitionsToTxnManagerMetrics
@@ -2341,12 +2268,10 @@ kafka.server.AlterUserScramCredentialsRequestTest:
 - testDeleteSomethingThatDoesNotExist
 - testMetadataVersionTooLow
 kafka.server.ApiVersionManagerTest:
-- testApiScope
 - testControllerApiIntersection
 - testDisabledApis
 - testEnvelopeDisabledForKRaftBroker
 - testEnvelopeDisabledWhenForwardingManagerEmpty
-- testEnvelopeEnabledWhenForwardingManagerPresent
 kafka.server.ApiVersionsRequestTest:
 - testApiVersionsRequest
 - testApiVersionsRequestIncludesUnreleasedApis
@@ -2442,7 +2367,6 @@ kafka.server.ClientQuotasRequestTest:
 - testAlterClientQuotasRequest
 - testAlterClientQuotasRequestValidateOnly
 - testAlterIpQuotasRequest
-- testClientQuotasForScramUsers
 - testClientQuotasSanitized
 - testClientQuotasUnsupportedEntityTypes
 - testClientQuotasWithDefaultName
@@ -2692,7 +2616,6 @@ kafka.server.DynamicBrokerConfigTest:
 - testUpdateMetricReportersNoJmxReporter
 kafka.server.DynamicBrokerReconfigurationTest:
 - testAddRemoveSaslListeners
-- testAddRemoveSslListener
 - testAdvertisedListenerUpdate
 - testConfigDescribeUsingAdminClient
 - testConsecutiveConfigChange
@@ -2748,7 +2671,6 @@ kafka.server.FetchFromFollowerIntegrationTest:
 - testFetchFromFollowerWithRoll
 - testFetchFromLeaderWhilePreferredReadReplicaIsUnavailable
 - testFollowerCompleteDelayedFetchesOnReplication
-- testRackAwareRangeAssignor
 kafka.server.FetchRequestDownConversionConfigTest:
 - testLatestFetchWithDownConversionDisabled
 - testV12WithDownConversionDisabled
@@ -3626,10 +3548,6 @@ kafka.server.RequestQuotaTest:
 - testResponseThrottleTimeWhenBothProduceAndRequestQuotasViolated
 - testUnauthorizedThrottle
 - testUnthrottledClient
-kafka.server.SaslApiVersionsRequestTest:
-- testApiVersionsRequestAfterSaslHandshakeRequest
-- testApiVersionsRequestBeforeSaslHandshakeRequest
-- testApiVersionsRequestWithUnsupportedVersion
 kafka.server.ServerMetricsTest:
 - testMetricsConfig
 kafka.server.ServerShutdownTest:
