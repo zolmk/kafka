@@ -3034,10 +3034,20 @@ org.apache.kafka.common.internals.PartitionStatesTest:
 - testUpdateAndMoveToEnd
 org.apache.kafka.common.internals.SecurityManagerCompatibilityTest:
 - testCompositeStrategyCallAsWhenSecurityManagerUnsupported
+- testCompositeStrategyCurrentWhenSecurityManagerUnsupported
+- testCompositeStrategyDoPrivilegedWhenSecurityManagerUnsupported
+- testCompositeStrategyLoadable
+- testCompositeStrategyLoadableWhenSecurityManagerRemoved
 - testDefaultStrategyCallAsCurrent
+- testDefaultStrategyCallAsReturn
 - testDefaultStrategyCurrentNull
 - testDefaultStrategyDoPrivilegedReturn
+- testDefaultStrategyDoPrivilegedThrow
+- testDefaultStrategyLoadable
+- testLegacyStrategyCallAsThrowsWhenSecurityManagerUnsupported
+- testLegacyStrategyCurrentThrowsWhenSecurityManagerUnsupported
 - testLegacyStrategyThrowsWhenSecurityManagerRemoved
+- testModernStrategyLoadable
 - testModernStrategyLoadableWhenSecurityManagerRemoved
 org.apache.kafka.common.internals.TopicTest:
 - shouldAcceptValidTopicNames
@@ -4622,17 +4632,20 @@ org.apache.kafka.common.utils.ByteBufferUnmapperTest:
 org.apache.kafka.common.utils.ByteUtilsTest:
 - testCorrectnessReadUnsignedVarint
 - testCorrectnessWriteUnsignedVarint
+- testDouble
 - testInvalidVarint
 - testInvalidVarlong
 - testReadInt
 - testReadUnsignedInt
 - testReadUnsignedIntLEFromArray
+- testReadUnsignedIntLEFromInputStream
 - testSizeOfUnsignedVarint
 - testSizeOfVarlong
 - testUnsignedVarintSerde
 - testVarintSerde
 - testVarlongSerde
 - testWriteUnsignedIntLEToArray
+- testWriteUnsignedIntLEToOutputStream
 org.apache.kafka.common.utils.BytesTest:
 - testIncrement
 - testIncrementUpperBoundary

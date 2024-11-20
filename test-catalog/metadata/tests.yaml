@@ -84,9 +84,22 @@ org.apache.kafka.controller.ConfigurationControlManagerTest:
 - testLegacyAlterConfigs
 - testReplay
 org.apache.kafka.controller.FeatureControlManagerTest:
+- testApplyMetadataVersionChangeRecord
+- testCanUpgradeToHigherVersion
+- testCanUseSafeDowngradeIfMetadataDidNotChange
+- testCannotDowngradeBefore3_3_IV0
+- testCannotDowngradeToHigherVersion
+- testCannotDowngradeToVersionBeforeMinimumSupportedKraftVersion
+- testCannotUnsafeDowngradeToHigherVersion
+- testCannotUpgradeToLowerVersion
+- testCannotUseSafeDowngradeIfMetadataChanged
+- testCreateFeatureLevelRecords
 - testNoMetadataVersionChangeDuringMigration
+- testReplay
 - testReplayRecords
+- testUnsafeDowngradeIsTemporarilyDisabled
 - testUpdateFeatures
+- testUpdateFeaturesErrorCases
 org.apache.kafka.controller.LogReplayTrackerTest:
 - testEmpty
 org.apache.kafka.controller.OffsetControlManagerTest:
