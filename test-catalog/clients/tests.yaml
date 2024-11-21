@@ -785,6 +785,10 @@ org.apache.kafka.clients.consumer.KafkaConsumerTest:
 - testSecondPollWithDeserializationErrorThrowsRecordDeserializationException
 - testSeekNegative
 - testShouldAttemptToRejoinGroupAfterSyncGroupFailed
+- testShouldNotCallMetricReporterMetricRemovalWithExistingConsumerMetric
+- testShouldOnlyCallMetricReporterMetricChangeOnceWithExistingConsumerMetric
+- testSubscribingCustomMetricsDoesntAffectConsumerMetrics
+- testSubscribingCustomMetricsWithSameNameDoesntAffectConsumerMetrics
 - testSubscription
 - testSubscriptionChangesWithAutoCommitDisabled
 - testSubscriptionChangesWithAutoCommitEnabled
@@ -795,8 +799,10 @@ org.apache.kafka.clients.consumer.KafkaConsumerTest:
 - testSubscriptionOnNullTopic
 - testSubscriptionOnNullTopicCollection
 - testSubscriptionWithEmptyPartitionAssignment
+- testUnSubscribingNonExisingMetricsDoesntCauseError
 - testUnsubscribeShouldTriggerPartitionsLostWithNoGeneration
 - testUnsubscribeShouldTriggerPartitionsRevokedWithValidGeneration
+- testUnsubscribingCustomMetricsWithSameNameDoesntAffectConsumerMetrics
 - testUnusedConfigs
 - testWakeupWithFetchDataAvailable
 - verifyHeartbeatSent
