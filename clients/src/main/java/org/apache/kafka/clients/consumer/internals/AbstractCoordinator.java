@@ -520,6 +520,7 @@ public abstract class AbstractCoordinator implements Closeable {
                     // we can only reset the join group future after the completion callback returns. This ensures
                     // that if the callback is woken up, we will retry it on the next joinGroupIfNeeded.
                     // And because of that we should explicitly trigger resetJoinGroupFuture in other conditions below.
+                    // 重置 joinGroupFuture
                     resetJoinGroupFuture();
                     needsJoinPrepare = true;
                 } else {
@@ -574,6 +575,9 @@ public abstract class AbstractCoordinator implements Closeable {
         // we store the join future in case we are woken up by the user after beginning the
         // rebalance in the call to poll below. This ensures that we do not mistakenly attempt
         // to rejoin before the pending rebalance has completed.
+        // 保存 joinFuture，以防我们在下面的调用轮询中开始重新平衡后被用户唤醒。
+        // 这确保了我们不会在挂起的再平衡完成之前错误地尝试重新加入。
+        // joinFuture 在收到 sync_group 响应后会被清空
         if (joinFuture == null) {
             state = MemberState.PREPARING_REBALANCE;
             // a rebalance can be triggered consecutively if the previous one failed,
@@ -858,6 +862,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
                                 future.raise(Errors.INCONSISTENT_GROUP_PROTOCOL);
                             } else {
+                                // TODO 收到了 SYNC_GROUP 的响应
                                 log.info("Successfully synced group in generation {}", generation);
                                 state = MemberState.STABLE;
                                 rejoinReason = "";
@@ -1277,6 +1282,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 // this case and ignore the REBALANCE_IN_PROGRESS error
                 synchronized (AbstractCoordinator.this) {
                     if (state == MemberState.STABLE) {
+                        // TODO 请求重新加入
                         requestRejoin("group is already rebalancing");
                         future.raise(error);
                     } else {

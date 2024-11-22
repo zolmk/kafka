@@ -539,6 +539,7 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
                               joinGroupResult: JoinGroupResult): Unit = {
     if (member.isAwaitingJoin) {
       try {
+        // TODO 执行 JOIN_GROUP 成功后的回调
         member.awaitingJoinCallback(joinGroupResult)
       } catch {
         case t: Throwable =>
@@ -576,7 +577,9 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
     if (members.nonEmpty) {
       generationId += 1
       protocolName = Some(selectProtocol)
+      // 计算当前组成员订阅的topics
       subscribedTopics = computeSubscribedTopics()
+      // 转移状态到 CompletingRebalance
       transitionTo(CompletingRebalance)
     } else {
       generationId += 1

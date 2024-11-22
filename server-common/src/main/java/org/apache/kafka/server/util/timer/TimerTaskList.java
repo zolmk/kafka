@@ -108,6 +108,10 @@ class TimerTaskList implements Delayed {
         }
     }
 
+    /**
+     * 刷新定时任务队列，消费当前队列中的任务后，重置过期时间 并移除所有元素
+     * @param f
+     */
     public synchronized void flush(Consumer<TimerTaskEntry> f) {
         TimerTaskEntry head = root.next;
         while (head != root) {

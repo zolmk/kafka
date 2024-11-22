@@ -163,6 +163,10 @@ public class TimingWheel {
                 // and the previous buckets gets reused; further calls to set the expiration within the same wheel cycle
                 // will pass in the same value and hence return false, thus the bucket with the same expiration will not
                 // be enqueued multiple times.
+                // TODO：妙
+                // bucket需要排队，因为它是一个过期的bucket，我们只需要在其过期时间更改时将bucket入队，
+                // 即车轮已提前并且以前的bucket被重用; 在同一车轮周期内设置过期的进一步调用将传递相同的值，
+                // 因此返回false，因此，具有相同到期时间的桶将不会多次入队。
                 queue.offer(bucket);
             }
 

@@ -179,6 +179,11 @@ public class CommonClientConfigs {
     public static final String GROUP_ID_CONFIG = "group.id";
     public static final String GROUP_ID_DOC = "A unique string that identifies the consumer group this consumer belongs to. This property is required if the consumer uses either the group management functionality by using <code>subscribe(topic)</code> or the Kafka-based offset management strategy.";
 
+    /**
+     * 最终用户提供的消费者实例的唯一标识符。只允许非空字符串。
+     * 如果设置，则将consumer视为静态成员，这意味着任何时候在consumer组中只允许一个具有此ID的实例。这可以与较大的会话超时结合使用，以避免由暂时不可用 (例如，进程重新启动) 引起的组重新平衡。
+     * 如果不设置，消费者将作为动态成员加入组，这是传统行为
+     */
     public static final String GROUP_INSTANCE_ID_CONFIG = "group.instance.id";
     public static final String GROUP_INSTANCE_ID_DOC = "A unique identifier of the consumer instance provided by the end user. "
                                                        + "Only non-empty strings are permitted. If set, the consumer is treated as a static member, "

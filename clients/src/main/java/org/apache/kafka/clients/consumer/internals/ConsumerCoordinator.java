@@ -443,6 +443,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
 
             // Update the current snapshot, which will be used to check for subscription
             // changes that would require a rebalance (e.g. new partitions).
+            // 更新当前快照，该快照将用于检查需要重新平衡的订阅更改 (例如，新分区)。
             metadataSnapshot = new MetadataSnapshot(rackId, subscriptions, cluster, version);
         }
     }
@@ -474,6 +475,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         invokeCompletedOffsetCommitCallbacks();
 
         if (subscriptions.hasAutoAssignedPartitions()) {
+            // TODO 自动指派分区
             if (protocol == null) {
                 throw new IllegalStateException("User configured " + ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG +
                     " to empty while trying to subscribe for group protocol to auto assign partitions");
@@ -491,6 +493,8 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                 // due to a race condition between the initial metadata fetch and the initial rebalance,
                 // we need to ensure that the metadata is fresh before joining initially. This ensures
                 // that we have matched the pattern against the cluster's topics at least once before joining.
+                // 由于初始元数据提取和初始再平衡之间的竞争条件，我们需要确保元数据在初始加入之前是新鲜的。
+                // 这可以确保我们在加入之前至少将模式与集群的主题进行一次匹配。
                 if (subscriptions.hasPatternSubscription()) {
                     // For consumer group that uses pattern-based subscription, after a topic is created,
                     // any consumer that discovers the topic after metadata refresh can trigger rebalance
@@ -502,7 +506,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                     if (this.metadata.timeToAllowUpdate(timer.currentTimeMs()) == 0) {
                         this.metadata.requestUpdate(true);
                     }
-
+                    // TODO 阻塞直到超时 或者 元数据已刷新
                     if (!client.ensureFreshMetadata(timer)) {
                         return false;
                     }
@@ -883,8 +887,10 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         // we need to rejoin if we performed the assignment and metadata has changed;
         // also for those owned-but-no-longer-existed partitions we should drop them as lost
         if (assignmentSnapshot != null && !assignmentSnapshot.matches(metadataSnapshot)) {
+            // TODO 如果元数据被更新了，则进入这里
             final String fullReason = String.format("cached metadata has changed from %s at the beginning of the rebalance to %s",
                 assignmentSnapshot, metadataSnapshot);
+            // 请求 rejoin
             requestRejoinIfNecessary("cached metadata has changed", fullReason);
             return true;
         }

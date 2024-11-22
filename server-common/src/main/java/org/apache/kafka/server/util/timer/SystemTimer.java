@@ -88,12 +88,15 @@ public class SystemTimer implements Timer {
      * waits up to timeoutMs before giving up.
      */
     public boolean advanceClock(long timeoutMs) throws InterruptedException {
+        // 让延迟队列中所有的定时任务 在 时间轮 中的位置前移 timeoutMs
         TimerTaskList bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
         if (bucket != null) {
             writeLock.lock();
             try {
                 while (bucket != null) {
+                    // 调整是时间轮的时钟
                     timingWheel.advanceClock(bucket.getExpiration());
+                    // TODO 将任务更新到时间轮，如果发现过期，则会放到执行器中执行
                     bucket.flush(this::addTimerTaskEntry);
                     bucket = delayQueue.poll();
                 }

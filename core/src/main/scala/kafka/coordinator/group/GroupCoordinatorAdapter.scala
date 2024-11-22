@@ -104,6 +104,7 @@ private[group] class GroupCoordinatorAdapter(
       )
     }
 
+    // group instance id 如果设置了，那么消费者将作为静态成员加入组
     val groupInstanceId = Option(request.groupInstanceId)
 
     // Only return MEMBER_ID_REQUIRED error if joinGroupRequest version is >= 4

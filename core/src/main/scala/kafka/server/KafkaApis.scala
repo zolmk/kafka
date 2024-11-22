@@ -203,7 +203,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.OFFSET_FETCH => handleOffsetFetchRequest(request).exceptionally(handleError) // TODO Consumer 拉取偏移量
         case ApiKeys.FIND_COORDINATOR => handleFindCoordinatorRequest(request) // TODO Consumer 处理查找协调器请求
         case ApiKeys.JOIN_GROUP => handleJoinGroupRequest(request, requestLocal).exceptionally(handleError) // TODO Consumer 处理加入组请求
-        case ApiKeys.HEARTBEAT => handleHeartbeatRequest(request).exceptionally(handleError)
+        case ApiKeys.HEARTBEAT => handleHeartbeatRequest(request).exceptionally(handleError) // TODO Consumer 处理心跳
         case ApiKeys.LEAVE_GROUP => handleLeaveGroupRequest(request).exceptionally(handleError)
         case ApiKeys.SYNC_GROUP => handleSyncGroupRequest(request, requestLocal).exceptionally(handleError)
         case ApiKeys.DESCRIBE_GROUPS => handleDescribeGroupsRequest(request).exceptionally(handleError)
@@ -1964,6 +1964,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       requestHelper.sendMaybeThrottle(request, syncGroupRequest.getErrorResponse(Errors.GROUP_AUTHORIZATION_FAILED.exception))
       CompletableFuture.completedFuture[Unit](())
     } else {
+      // TODO 上述检查通过走这里
       groupCoordinator.syncGroup(
         request.context,
         syncGroupRequest.data,
