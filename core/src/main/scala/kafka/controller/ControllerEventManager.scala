@@ -126,6 +126,7 @@ class ControllerEventManager(controllerId: Int,
     logIdent = logPrefix
 
     override def doWork(): Unit = {
+      // 从队列中拉取一个事件来处理
       val dequeued = pollFromEventQueue()
       dequeued.event match {
         case ShutdownEventThread => // The shutting down of the thread has been initiated at this point. Ignore this event.
@@ -135,6 +136,7 @@ class ControllerEventManager(controllerId: Int,
           eventQueueTimeHist.update(time.milliseconds() - dequeued.enqueueTimeMs)
 
           try {
+            // 调用ControllerEventProcessor来处理事件
             def process(): Unit = dequeued.process(processor)
 
             rateAndTimeMetrics.get(state) match {

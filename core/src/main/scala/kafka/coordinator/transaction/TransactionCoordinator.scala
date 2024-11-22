@@ -732,6 +732,7 @@ class TransactionCoordinator(txnConfig: TransactionConfig,
    */
   def startup(retrieveTransactionTopicPartitionCount: () => Int, enableTransactionalIdExpiration: Boolean = true): Unit = {
     info("Starting up.")
+    // 启动内部的调度器
     scheduler.startup()
     scheduler.schedule("transaction-abort",
       () => abortTimedOutTransactions(onEndTransactionComplete),

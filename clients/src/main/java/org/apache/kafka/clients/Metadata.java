@@ -70,7 +70,11 @@ public class Metadata implements Closeable {
     private final long metadataExpireMs;
     private int updateVersion;  // bumped on every metadata response
     private int requestVersion; // bumped on every new topic addition
+
+    /** 上一次更新元数据的时间 */
     private long lastRefreshMs;
+
+    /** 上一次成功更新元数据的时间 */
     private long lastSuccessfulRefreshMs;
     private long attempts;
     private KafkaException fatalException;
@@ -342,6 +346,7 @@ public class Metadata implements Closeable {
         this.needPartialUpdate = requestVersion < this.requestVersion;
         this.lastRefreshMs = nowMs;
         this.attempts = 0;
+        // 更新元数据版本
         this.updateVersion += 1;
         if (!isPartialUpdate) {
             this.needFullUpdate = false;

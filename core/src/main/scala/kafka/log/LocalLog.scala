@@ -172,6 +172,7 @@ class LocalLog(@volatile private var _dir: File,
   private[log] def flush(offset: Long): Unit = {
     val currentRecoveryPoint = recoveryPoint
     if (currentRecoveryPoint <= offset) {
+      // 只刷新从当前恢复点到offset的segment
       val segmentsToFlush = segments.values(currentRecoveryPoint, offset)
       segmentsToFlush.forEach(_.flush())
       // If there are any new segments, we need to flush the parent directory for crash consistency.
@@ -318,6 +319,7 @@ class LocalLog(@volatile private var _dir: File,
       time,
       config.initFileSize,
       config.preallocate)
+    // 添加到段集合中
     segments.add(newSegment)
 
     reason.logReason(List(segmentToDelete))
@@ -363,6 +365,7 @@ class LocalLog(@volatile private var _dir: File,
 
       val endOffsetMetadata = nextOffsetMetadata
       val endOffset = endOffsetMetadata.messageOffset
+      // 获取到segment对象
       var segmentOpt = segments.floorSegment(startOffset)
 
       // return error on attempt to read beyond the log end offset
@@ -394,12 +397,15 @@ class LocalLog(@volatile private var _dir: File,
               Optional.of(maxOffsetMetadata.relativePositionInSegment)
             else
               Optional.empty()
-
+          // 从segment中读取消息
           fetchDataInfo = segment.read(startOffset, maxLength, maxPositionOpt, minOneMessage)
           if (fetchDataInfo != null) {
             if (includeAbortedTxns)
               fetchDataInfo = addAbortedTransactions(startOffset, segment, fetchDataInfo)
-          } else segmentOpt = segments.higherSegment(baseOffset)
+          } else {
+            // 移动到更高偏移量的segment中
+            segmentOpt = segments.higherSegment(baseOffset)
+          }
         }
 
         if (fetchDataInfo != null) fetchDataInfo
@@ -414,7 +420,9 @@ class LocalLog(@volatile private var _dir: File,
   }
 
   private[log] def append(lastOffset: Long, largestTimestamp: Long, shallowOffsetOfMaxTimestamp: Long, records: MemoryRecords): Unit = {
+    // 添加到当前活跃日志中
     segments.activeSegment.append(lastOffset, largestTimestamp, shallowOffsetOfMaxTimestamp, records)
+    // 更新 LEO
     updateLogEndOffset(lastOffset + 1)
   }
 
@@ -483,6 +491,9 @@ class LocalLog(@volatile private var _dir: File,
             s"=max(provided offset = $expectedNextOffset, LEO = $logEndOffset) while it already " +
             s"exists and is active with size 0. Size of time index: ${activeSegment.timeIndex.entries}," +
             s" size of offset index: ${activeSegment.offsetIndex.entries}.")
+          /**
+           * 创建一个新的Segment
+           */
           val newSegment = createAndDeleteSegment(newOffset, activeSegment, asyncDelete = true, LogRoll(this))
           updateLogEndOffset(nextOffsetMetadata.messageOffset)
           info(s"Rolled new log segment at offset $newOffset in ${time.hiResClockMs() - start} ms.")

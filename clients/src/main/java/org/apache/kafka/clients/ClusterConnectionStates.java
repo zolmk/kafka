@@ -68,7 +68,9 @@ final class ClusterConnectionStates {
     }
 
     /**
-     * Return true iff we can currently initiate a new connection. This will be the case if we are not
+     *
+     * 如果我们当前可以启动新连接，则返回true。如果我们没有连接并且至少在最小重新连接回退时段内没有连接，则将是这种情况
+     * Return true if we can currently initiate a new connection. This will be the case if we are not
      * connected and haven't been connected for at least the minimum reconnection backoff period.
      * @param id the connection id to check
      * @param now the current time in ms
@@ -79,6 +81,7 @@ final class ClusterConnectionStates {
         if (state == null)
             return true;
         else
+            // 如果连接丢失 且 最近一次连接间隔 大于 重连间隔
             return state.state.isDisconnected() &&
                    now - state.lastConnectAttemptMs >= state.reconnectBackoffMs;
     }

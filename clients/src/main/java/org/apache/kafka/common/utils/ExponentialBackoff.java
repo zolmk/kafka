@@ -20,6 +20,12 @@ package org.apache.kafka.common.utils;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
+ * 一个实用程序类，用于保持参数并提供指数重试退避、指数重新连接退避、指数超时等的值。
+ * 公式为:
+ * Backoff(attempts) = random(1 - jitter, 1 + jitter) * initialInterval * multiplier ^ attempts
+ * ，如果 {$ code maxInterval} 小于initialInterval ，则将提供maxInterval的恒定回退。抖动将永远不会导致退避超过maxInterval。
+ * 此类是线程安全的。
+ *
  * A utility class for keeping the parameters and providing the value of exponential
  * retry backoff, exponential reconnect backoff, exponential timeout, etc.
  * <p>

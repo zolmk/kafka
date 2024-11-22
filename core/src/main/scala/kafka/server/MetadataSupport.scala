@@ -64,6 +64,7 @@ sealed trait MetadataSupport {
     responseCallback: Option[AbstractResponse] => Unit
   ): Unit = {
     if (!request.isForwarded && canForward()) {
+      // 如果请求是未转发过的，并且 可以被转发
       forwardingManager.get.forwardRequest(request, responseCallback)
     } else {
       handler(request)
@@ -87,6 +88,10 @@ case class ZkSupport(adminManager: ZkAdminManager,
     }
   }
 
+  /**
+   * 请求是否进行转发，如果当前broker是controller，则controller.isActive将返回true，请求将由当前broker执行
+   * @return
+   */
   override def canForward(): Boolean = forwardingManager.isDefined && (!controller.isActive)
 
   def isBrokerEpochStale(brokerEpochInRequest: Long, isKRaftControllerRequest: Boolean): Boolean = {

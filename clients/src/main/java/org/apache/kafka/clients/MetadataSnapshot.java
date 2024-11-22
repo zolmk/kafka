@@ -40,6 +40,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
+ * Kafka集群中节点、主题和分区的内部不可变快照。这使集群实例保持最新，该实例针对读取访问进行了优化。
+ * 更喜欢将MetadataSnapshot的API扩展为内部客户端使用与公共集群
  * An internal immutable snapshot of nodes, topics, and partitions in the Kafka cluster. This keeps an up-to-date Cluster
  * instance which is optimized for read access.
  * Prefer to extend MetadataSnapshot's API for internal client usage Vs the public {@link Cluster}

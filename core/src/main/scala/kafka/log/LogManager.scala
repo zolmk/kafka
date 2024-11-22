@@ -82,13 +82,15 @@ class LogManager(logDirs: Seq[File],
                  time: Time,
                  val keepPartitionMetadataFile: Boolean,
                  remoteStorageSystemEnable: Boolean,
-                 val initialTaskDelayMs: Long) extends Logging {
+                 val initialTaskDelayMs: Long /*30s*/) extends Logging {
 
   import LogManager._
 
   private val metricsGroup = new KafkaMetricsGroup(this.getClass)
 
   private val logCreationOrDeletionLock = new Object
+
+  // TODO 核心参数 logs 一个topic partition对应一个log
   private val currentLogs = new Pool[TopicPartition, UnifiedLog]()
   // Future logs are put in the directory with "-future" suffix. Future log is created when user wants to move replica
   // from one log directory to another log directory on the same broker. The directory of the future log will be renamed
@@ -101,8 +103,10 @@ class LogManager(logDirs: Seq[File],
   // Visible for testing
   private val strayLogs = new Pool[TopicPartition, UnifiedLog]()
 
+  // 创建和校验log目录
   private val _liveLogDirs: ConcurrentLinkedQueue[File] = createAndValidateLogDirs(logDirs, initialOfflineDirs)
   @volatile private var _currentDefaultConfig = initialDefaultConfig
+  // 默认值为 1
   @volatile private var numRecoveryThreadsPerDataDir = recoveryThreadsPerDataDir
 
   // This map contains all partitions whose logs are getting loaded and initialized. If log configuration
@@ -173,7 +177,7 @@ class LogManager(logDirs: Seq[File],
   private def createAndValidateLogDirs(dirs: Seq[File], initialOfflineDirs: Seq[File]): ConcurrentLinkedQueue[File] = {
     val liveLogDirs = new ConcurrentLinkedQueue[File]()
     val canonicalPaths = mutable.HashSet.empty[String]
-
+    // 遍历目录，如果不存在，则创建目录
     for (dir <- dirs) {
       try {
         if (initialOfflineDirs.contains(dir))
@@ -328,11 +332,15 @@ class LogManager(logDirs: Seq[File],
                            topicConfigOverrides: Map[String, LogConfig],
                            numRemainingSegments: ConcurrentMap[String, Int],
                            isStray: UnifiedLog => Boolean): UnifiedLog = {
+    // 获取分区信息
     val topicPartition = UnifiedLog.parseTopicPartitionName(logDir)
-    val config = topicConfigOverrides.getOrElse(topicPartition.topic, defaultConfig)
-    val logRecoveryPoint = recoveryPoints.getOrElse(topicPartition, 0L)
-    val logStartOffset = logStartOffsets.getOrElse(topicPartition, 0L)
 
+    val config = topicConfigOverrides.getOrElse(topicPartition.topic, defaultConfig)
+
+    val logRecoveryPoint = recoveryPoints.getOrElse(topicPartition, 0L)
+
+    val logStartOffset = logStartOffsets.getOrElse(topicPartition, 0L)
+    // TODO 创建log对象
     val log = UnifiedLog(
       dir = logDir,
       config = config,
@@ -351,9 +359,12 @@ class LogManager(logDirs: Seq[File],
       numRemainingSegments = numRemainingSegments,
       remoteStorageSystemEnable = remoteStorageSystemEnable)
 
+
     if (logDir.getName.endsWith(UnifiedLog.DeleteDirSuffix)) {
+      // 如果以 -delete 结尾，那么就将log加入到待删除集合中
       addLogToBeDeleted(log)
     } else if (logDir.getName.endsWith(UnifiedLog.StrayDirSuffix)) {
+      // 杂散log？？
       addStrayLog(topicPartition, log)
       warn(s"Loaded stray log: $logDir")
     } else if (isStray(log)) {
@@ -365,6 +376,7 @@ class LogManager(logDirs: Seq[File],
       addStrayLog(log.topicPartition, log)
       warn(s"Log in ${logDir.getAbsolutePath} marked stray and renamed to ${log.dir.getAbsolutePath}")
     } else {
+      // 将log放入map中
       val previous = {
         if (log.isFuture)
           this.futureLogs.put(topicPartition, log)
@@ -427,10 +439,16 @@ class LogManager(logDirs: Seq[File],
     }
 
     val uncleanLogDirs = mutable.Buffer.empty[String]
+
+    /**
+     * 遍历所有目录
+     */
     for (dir <- liveLogDirs) {
       val logDirAbsolutePath = dir.getAbsolutePath
       var hadCleanShutdown: Boolean = false
       try {
+        // 为每个目录都创建一个线程池
+        // 后面启动线程去加载log
         val pool = Executors.newFixedThreadPool(numRecoveryThreadsPerDataDir,
           new LogRecoveryThreadFactory(logDirAbsolutePath))
         threadPools.append(pool)
@@ -462,6 +480,9 @@ class LogManager(logDirs: Seq[File],
               s"$logDirAbsolutePath, resetting to the base offset of the first segment", e)
         }
 
+        /**
+         * 过滤出所有topic partition 目录
+         */
         val logsToLoad = Option(dir.listFiles).getOrElse(Array.empty).filter(logDir =>
           logDir.isDirectory &&
             // Ignore remote-log-index-cache directory as that is index cache maintained by tiered storage subsystem
@@ -489,6 +510,7 @@ class LogManager(logDirs: Seq[File],
             var log = None: Option[UnifiedLog]
             val logLoadStartMs = time.hiResClockMs()
             try {
+              // 加载日志
               log = Some(loadLog(logDir, hadCleanShutdown, recoveryPoints, logStartOffsets,
                 defaultConfig, topicConfigOverrides, numRemainingSegments, isStray))
             } catch {
@@ -620,8 +642,17 @@ class LogManager(logDirs: Seq[File],
     defaultConfig: LogConfig,
     topicConfigOverrides: Map[String, LogConfig],
     isStray: UnifiedLog => Boolean): Unit = {
+
     loadLogs(defaultConfig, topicConfigOverrides, isStray) // this could take a while if shutdown was not clean
 
+    /**
+     * 调度了三个任务
+     * 1. 定时检查文件，清理超时的文件
+     * 2. 定时把内存里面的数据刷新到磁盘
+     *    默认情况下，刷盘时机是由操作系统决定的，如果对数据要求非常非常搞，用户可以配置该项
+     *    底层是调用FileChannel的force方法刷入的
+     * 3. 定时更新offset检查点的文件，服务于kafka重启时恢复数据使用
+     */
     /* Schedule the cleanup task to delete old logs */
     if (scheduler != null) {
       info("Starting log cleanup with a period of %d ms.".format(retentionCheckMs))
@@ -629,19 +660,27 @@ class LogManager(logDirs: Seq[File],
                          () => cleanupLogs(),
                          initialTaskDelayMs,
                          retentionCheckMs)
+
       info("Starting log flusher with a default period of %d ms.".format(flushCheckMs))
       scheduler.schedule("kafka-log-flusher",
                          () => flushDirtyLogs(),
                          initialTaskDelayMs,
+                          // 默认值为long的最大值
                          flushCheckMs)
+
       scheduler.schedule("kafka-recovery-point-checkpoint",
                          () => checkpointLogRecoveryOffsets(),
                          initialTaskDelayMs,
                          flushRecoveryOffsetCheckpointMs)
+
+
+      // 主要是更新offset信息
       scheduler.schedule("kafka-log-start-offset-checkpoint",
                          () => checkpointLogStartOffsets(),
                          initialTaskDelayMs,
-                         flushStartOffsetCheckpointMs)
+                         flushStartOffsetCheckpointMs) // 默认值 60 * 1000
+
+
       scheduler.scheduleOnce("kafka-delete-logs", // will be rescheduled after each delete logs with a dynamic period
                          () => deleteLogs(),
                          initialTaskDelayMs)
@@ -1407,6 +1446,7 @@ class LogManager(logDirs: Seq[File],
     val startMs = time.milliseconds
 
     // clean current logs.
+    // 过滤出可删除的logs
     val deletableLogs = {
       if (cleaner != null) {
         // prevent cleaner from working on same partitions when changing cleanup policy
@@ -1428,6 +1468,7 @@ class LogManager(logDirs: Seq[File],
           if (futureLog != null) {
             // clean future logs
             debug(s"Garbage collecting future log '${futureLog.name}'")
+            // 删除满足条件的文件
             total += futureLog.deleteOldSegments()
           }
       }
@@ -1497,7 +1538,10 @@ class LogManager(logDirs: Seq[File],
         val timeSinceLastFlush = time.milliseconds - log.lastFlushTime
         debug(s"Checking if flush is needed on ${topicPartition.topic} flush interval ${log.config.flushMs}" +
               s" last flushed ${log.lastFlushTime} time since last flush: $timeSinceLastFlush")
-        if (timeSinceLastFlush >= log.config.flushMs)
+        // 按照一定频率刷新log到磁盘
+        // 默认情况下，kafka不会主动将内存中的数据刷新到磁盘
+        // 刷新时机是由操作系统控制的
+        if (timeSinceLastFlush >= log.config.flushMs) // flushMs 默认为最大值
           log.flush(false)
       } catch {
         case e: Throwable =>
@@ -1576,6 +1620,7 @@ object LogManager {
 
     val cleanerConfig = LogCleaner.cleanerConfig(config)
 
+    // logDirs 通常情况下会对应多个目录
     new LogManager(logDirs = config.logDirs.map(new File(_).getAbsoluteFile),
       initialOfflineDirs = initialOfflineDirs.map(new File(_).getAbsoluteFile),
       configRepository = configRepository,

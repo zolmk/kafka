@@ -127,6 +127,11 @@ abstract class AbstractFetcherManager[T <: AbstractFetcherThread](val name: Stri
 
   def addFetcherForPartitions(partitionAndOffsets: Map[TopicPartition, InitialFetchState]): Unit = {
     lock synchronized {
+      /**
+       * 按照topic partition进行group by，然后去计算拉取的任务
+       * 主要原因是，如果leader partition在同一个broker上面，只需要启动一个线程就可以了。
+       *
+       */
       val partitionsPerFetcher = partitionAndOffsets.groupBy { case (topicPartition, brokerAndInitialFetchOffset) =>
         BrokerAndFetcherId(brokerAndInitialFetchOffset.leader, getFetcherId(topicPartition))
       }

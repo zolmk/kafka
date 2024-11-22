@@ -728,6 +728,9 @@ public class TransactionManager {
 
     // Attempts to resolve unresolved sequences. If all in-flight requests are complete and some partitions are still
     // unresolved, either bump the epoch if possible, or transition to a fatal error
+    /**
+     * 尝试解析未解析的序列。如果所有进行中的请求都已完成，并且某些分区仍未解决，则可能会撞到纪元，或者转换为致命错误
+     */
     synchronized void maybeResolveSequences() {
         for (Iterator<TopicPartition> iter = partitionsWithUnresolvedSequences.keySet().iterator(); iter.hasNext(); ) {
             TopicPartition topicPartition = iter.next();

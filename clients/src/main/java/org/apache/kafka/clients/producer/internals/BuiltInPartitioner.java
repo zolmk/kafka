@@ -179,6 +179,7 @@ public class BuiltInPartitioner {
     }
 
     /**
+     * 使用附加的字节数更新分区信息，并可能切换分区。注意: 这个函数需要在分区的批处理队列锁下调用
      * Update partition info with the number of bytes appended and maybe switch partition.
      * NOTE this function needs to be called under the partition's batch queue lock.
      *
@@ -195,6 +196,22 @@ public class BuiltInPartitioner {
         assert partitionInfo == stickyPartitionInfo.get();
         int producedBytes = partitionInfo.producedBytes.addAndGet(appendedBytes);
 
+        // 我们试图切换分区，一旦我们产生stickyBatchSize字节的分区，但这样做可能会阻碍批处理，
+        // 因为分区切换可能发生，而批处理还没有准备好发送。这种情况尤其可能与高linger.ms设置。
+        // 考虑以下示例: linger.ms = 500，producer在500毫秒内产生12KB，batch.size = 16KB
+        //      -第一批次在500毫秒内收集12KB，获取发送
+        //      -第二批次收集4KB，然后我们切换分区，因此4KB最终获取发送
+        //      -...等等-我们会得到12KB和4KB批次，
+        // 以获得更多的最佳批处理，并避免4KB部分批次，调用者可能不允许分区切换，如果批次没有准备好发送，
+        // 所以在上面的例子中，我们会避免部分4KB批次: 在这种情况下，场景将如下所示:
+        //      -第一批次在500毫秒内收集12KB，被发送
+        //      -第二批次收集4KB，但分区切换不会发生，因为批次未准备好
+        //      -第二批次在500毫秒内收集12KB，被发送，现在我们切换分区。
+        //      -...等等-我们只是发送12KB批次，
+        // 我们将产生的字节上限设置为不超过批次大小的2倍，以避免病理情况 (例如，如果我们混合了键控和非键控消息，
+        // 在禁用的分区切换变为就绪的批处理之后，密钥消息可能会创建一个未就绪的批处理)。因此，具有高latency.ms设置，
+
+        // 我们最终在stickyBatchSize和stickyBatchSize 2个字节之间生成后切换分区，以更好地与批处理边界对齐。
         // We're trying to switch partition once we produce stickyBatchSize bytes to a partition
         // but doing so may hinder batching because partition switch may happen while batch isn't
         // ready to send.  This situation is especially likely with high linger.ms setting.
@@ -277,6 +294,20 @@ public class BuiltInPartitioner {
         // random numbers 0, 1, 2, 3 would map to partition[0], 4 would map to partition[1]
         // and 5, 6, 7 would map to partition[2].
 
+        /**
+         * 我们根据队列大小构建累积频率表。在开始时，每个条目包含队列大小，然后我们将其反转 (因此它表示频率) 并转换为运行总和。
+         * 然后在 [0 .. last) 范围内的均匀分布的随机变量将映射到具有加权概率的分区。
+         * 示例: 假设我们有3个分区，对应的队列大小为:
+         * 0 3 1
+         * 然后我们可以通过从 最大队列大小 + 1 = 4 中减去队列大小来反转它们:
+         * 4 1 3
+         * 然后我们可以将其转换为运行总和 (下一个值加上上一个值): 前缀和？
+         * 4 5 8
+         * 现在，如果我们得到一个范围为 [0..8) 的随机数，并找到第一个严格大于该数字的值 (例如，对于4，它将是5)，
+         * 在这个例子中，随机数0，1，2，3将映射到分区 [0]，4将映射到分区 [1]，5，6，7将映射到分区 [2]。
+         * 妙！！！这样可以很容易做加权负载均衡
+         */
+
         // Calculate max queue size + 1 and check if all sizes are the same.
         int maxSizePlus1 = queueSizes[0];
         boolean allEqual = true;
@@ -331,10 +362,20 @@ public class BuiltInPartitioner {
     }
 
     /**
+     * 分区负载统计
+     * 用来做负载均衡
      * The partition load stats for each topic that are used for adaptive partition distribution.
      */
     private static final class PartitionLoadStats {
+        /**
+         * cumulative 累积的
+         * frequency 频率
+         * 累积频率表，用来做分区的负载均衡
+         */
         public final int[] cumulativeFrequencyTable;
+        /**
+         * 与累积频率表一一对应
+         */
         public final int[] partitionIds;
         public final int length;
 

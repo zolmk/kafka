@@ -67,6 +67,7 @@ class ZkAlterPartitionManager(scheduler: Scheduler, time: Time, zkClient: KafkaZ
     debug(s"Writing new ISR ${leaderAndIsr.isr} to ZooKeeper with version " +
       s"${leaderAndIsr.partitionEpoch} for partition $topicIdPartition")
 
+    // 更新zk中的元数据
     val (updateSucceeded, newVersion) = ReplicationUtils.updateLeaderAndIsr(zkClient, topicIdPartition.topicPartition,
       leaderAndIsr, controllerEpoch)
 

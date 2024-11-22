@@ -252,6 +252,7 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
     assert(this.protocolType.orNull == member.protocolType)
     assert(supportsProtocols(member.protocolType, MemberMetadata.plainProtocolSet(member.supportedProtocols)))
 
+    // 首次进入，会走这里，当前member作为leader
     if (leaderId.isEmpty)
       leaderId = Some(member.memberId)
 

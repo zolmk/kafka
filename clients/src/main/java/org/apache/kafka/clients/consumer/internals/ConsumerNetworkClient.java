@@ -269,11 +269,13 @@ public class ConsumerNetworkClient implements Closeable {
             handlePendingDisconnects();
 
             // send all the requests we can send now
+            // 尝试发送请求，这一步是准备工作，将Send对象设置到KafkaChannel中，在下一步调用client.poll时处理真正的网络IO
             long pollDelayMs = trySend(timer.currentTimeMs());
 
             // check whether the poll is still needed by the caller. Note that if the expected completion
             // condition becomes satisfied after the call to shouldBlock() (because of a fired completion
             // handler), the client will be woken up.
+            // 调用 client.poll方法收发请求或响应
             if (pendingCompletion.isEmpty() && (pollCondition == null || pollCondition.shouldBlock())) {
                 // if there are no requests in flight, do not block longer than the retry backoff
                 long pollTimeout = Math.min(timer.remainingMs(), pollDelayMs);
@@ -305,6 +307,7 @@ public class ConsumerNetworkClient implements Closeable {
             failExpiredRequests(timer.currentTimeMs());
 
             // clean unsent requests collection to keep the map from growing indefinitely
+            // 如果节点对应的队列为空，则清除该队列
             unsent.clean();
         } finally {
             lock.unlock();

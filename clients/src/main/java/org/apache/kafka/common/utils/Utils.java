@@ -979,6 +979,7 @@ public final class Utils {
     public static void flushDir(Path path) throws IOException {
         if (path != null && !OperatingSystem.IS_WINDOWS && !OperatingSystem.IS_ZOS) {
             try (FileChannel dir = FileChannel.open(path, StandardOpenOption.READ)) {
+                // 强制刷入磁盘
                 dir.force(true);
             }
         }

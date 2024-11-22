@@ -210,6 +210,7 @@ class KafkaServer(
   def brokerEpochSupplier(): Long = Option(brokerEpochManager).map(_.get()).getOrElse(-1)
 
   /**
+   * kafka broker启动的核心流程
    * Start up API for bringing up a single instance of the Kafka server.
    * Instantiates the LogManager, the SocketServer and the request handlers - KafkaRequestHandlers
    */
@@ -286,6 +287,7 @@ class KafkaServer(
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
         // Make sure all storage directories have meta.properties files.
+        // 确保所有存储目录都有 meta.properties 文件。
         val metaPropsEnsemble = {
           val copier = new MetaPropertiesEnsemble.Copier(initialMetaPropsEnsemble)
           initialMetaPropsEnsemble.nonFailedDirectoryProps().forEachRemaining(e => {
@@ -313,8 +315,11 @@ class KafkaServer(
         }
         metaPropsEnsemble.verify(Optional.of(_clusterId), OptionalInt.of(config.brokerId), verificationFlags)
 
+        /**
+         * TODO 创建Log manager
+         */
         /* start log manager */
-        _logManager = LogManager(
+        _logManager = LogManager( // 执行apply方法
           config,
           metaPropsEnsemble.errorLogDirs().asScala.toSeq,
           configRepository,
@@ -323,11 +328,16 @@ class KafkaServer(
           brokerTopicStats,
           logDirFailureChannel,
           config.usesTopicId)
+        // 进行log恢复
         _brokerState = BrokerState.RECOVERY
+        // 启动log manager
         logManager.startup(zkClient.getAllTopicsInCluster())
 
         remoteLogManagerOpt = createRemoteLogManager()
 
+        /**
+         * TODO 创建元数据缓存
+         */
         metadataCache = MetadataCache.zkMetadataCache(
           config.brokerId,
           config.interBrokerProtocolVersion,
@@ -380,6 +390,9 @@ class KafkaServer(
         //
         // Note that we allow the use of KRaft mode controller APIs when forwarding is enabled
         // so that the Envelope request is exposed. This is only used in testing currently.
+        /**
+         * TODO NIO客户端
+         */
         socketServer = new SocketServer(config, metrics, time, credentialProvider, apiVersionManager)
 
         // Start alter partition manager based on the IBP version
@@ -399,10 +412,16 @@ class KafkaServer(
         }
         alterPartitionManager.start()
 
+        /**
+         * TODO 初始化replica manager
+         */
         // Start replica manager
         _replicaManager = createReplicaManager(isShuttingDown)
         replicaManager.startup()
 
+        /**
+         * TODO 注册broker节点
+         */
         val brokerInfo = createBrokerInfo
         val brokerEpoch = zkClient.registerBroker(brokerInfo)
 
@@ -411,6 +430,9 @@ class KafkaServer(
         tokenManager.startup()
 
         /* start kafka controller */
+        /**
+         * TODO 启动 kafka controller
+         */
         _kafkaController = new KafkaController(config, zkClient, time, metrics, brokerInfo, brokerEpoch, tokenManager, brokerFeatures, metadataCache, threadNamePrefix)
         kafkaController.startup()
 
@@ -422,6 +444,11 @@ class KafkaServer(
               "continue, but without the fault tolerance afforded by metadata transactions."
             )
           }
+
+          /**
+           * TODO broker生命周期管理器
+           */
+
           lifecycleManager = new BrokerLifecycleManager(config,
             time,
             s"zk-broker-${config.nodeId}-",
@@ -484,6 +511,9 @@ class KafkaServer(
           val featuresRemapped = features + (MetadataVersion.FEATURE_NAME ->
             VersionRange.of(config.interBrokerProtocolVersion.featureLevel(), config.interBrokerProtocolVersion.featureLevel()))
 
+          /**
+           * 启动broker生命周期管理器
+           */
           lifecycleManager.start(
             () => listener.highestOffset,
             brokerToQuorumChannelManager,
@@ -503,6 +533,9 @@ class KafkaServer(
 
         /* start group coordinator */
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
+        /**
+         * TODO 启动组协调器
+         */
         groupCoordinator = GroupCoordinatorAdapter(
           config,
           replicaManager,
@@ -524,11 +557,17 @@ class KafkaServer(
         }
         /* start transaction coordinator, with a separate background thread scheduler for transaction expiration and log loading */
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
+        /**
+         * 启动事务协调器，并为事务过期和日志加载Hardcode Time.SYSTEM提供单独的后台线程调度程序，因为某些流测试会失败，否则，最好修复基础问题
+         */
         transactionCoordinator = TransactionCoordinator(config, replicaManager, new KafkaScheduler(1, true, "transaction-log-manager-"),
           () => producerIdManager, metrics, metadataCache, Time.SYSTEM)
         transactionCoordinator.startup(
           () => zkClient.getTopicPartitionCount(Topic.TRANSACTION_STATE_TOPIC_NAME).getOrElse(config.transactionTopicPartitions))
 
+        /**
+         * TODO 开启自动topic创建管理器
+         */
         /* start auto topic creation manager */
         this.autoTopicCreationManager = AutoTopicCreationManager(
           config,
@@ -580,6 +619,9 @@ class KafkaServer(
         }
 
         /* start processing requests */
+        /**
+         * TODO 开始处理Kafka从客户端接收到的请求
+         */
         val zkSupport = ZkSupport(adminManager, kafkaController, zkClient, forwardingManager, metadataCache, brokerEpochManager)
 
         def createKafkaApis(requestChannel: RequestChannel): KafkaApis = new KafkaApis(
@@ -605,7 +647,7 @@ class KafkaServer(
           clientMetricsManager = None)
 
         dataPlaneRequestProcessor = createKafkaApis(socketServer.dataPlaneRequestChannel)
-
+        // 数据面请求处理池
         dataPlaneRequestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.dataPlaneRequestChannel, dataPlaneRequestProcessor, time,
           config.numIoThreads, s"${DataPlaneAcceptor.MetricPrefix}RequestHandlerAvgIdlePercent", DataPlaneAcceptor.ThreadPrefix)
 
@@ -629,6 +671,7 @@ class KafkaServer(
                                                            ConfigType.IP -> new IpConfigHandler(socketServer.connectionQuotas))
 
         // Create the config manager. start listening to notifications
+        // TODO 创建动态配置管理器
         dynamicConfigManager = new ZkConfigManager(zkClient, dynamicConfigHandlers)
         dynamicConfigManager.startup()
 
@@ -644,6 +687,9 @@ class KafkaServer(
           }
         }
 
+        /**
+         * TODO 开启所有的acceptor，开始处理请求
+         */
         val enableRequestProcessingFuture = socketServer.enableRequestProcessing(authorizerFutures)
         // Block here until all the authorizer futures are complete
         try {

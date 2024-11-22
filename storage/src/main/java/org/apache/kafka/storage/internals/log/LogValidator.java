@@ -141,6 +141,14 @@ public class LogValidator {
     }
 
     /**
+     * 更新此消息集的偏移，并对消息进行进一步验证，包括:
+     * 1.压缩主题的消息必须具有键
+     * 2。当magic value >= 1时，压缩消息集的内部消息必须具有从0开始单调递增的偏移量。
+     * 3.当魔法值> = 1时，验证并可能覆盖消息的时间戳。
+     * 4.DefaultRecordBatch中声明的记录数必须与其中包含的有效记录数匹配。此方法将根据需要将消息转换为主题的已配置消息格式版本。
+     * 如果消息不需要格式转换或值覆盖，则此方法将执行就地操作以避免昂贵的重新压缩。
+     * 返回ValidationAndOffsetAssignResult，其中包含已验证的消息集、最大时间戳、浅层消息与最大时间戳的偏移量以及指示消息大小是否已更改的布尔值。
+     *
      * Update the offsets for this message set and do further validation on messages including:
      * 1. Messages for compacted topics must have keys
      * 2. When magic value >= 1, inner messages of a compressed message set must have monotonically increasing offsets

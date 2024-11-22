@@ -37,6 +37,10 @@ trait ApiRequestHandler {
   def tryCompleteActions(): Unit = {}
 }
 
+/**
+ * KafkaRequestHandler类的伴生单例对象，该对象是单例的
+ * scale没有static，因此可以利用伴生对象实现static的效果
+ */
 object KafkaRequestHandler {
   // Support for scheduling callbacks on a request thread.
   private val threadRequestChannel = new ThreadLocal[RequestChannel]
@@ -84,6 +88,8 @@ object KafkaRequestHandler {
 }
 
 /**
+ * kafka请求处理器
+ *
  * A thread that answers kafka requests.
  */
 class KafkaRequestHandler(
@@ -110,6 +116,9 @@ class KafkaRequestHandler(
       // time should be discounted by # threads.
       val startSelectTime = time.nanoseconds
 
+      /**
+       * 从requestChannel的队列中获取请求
+       */
       val req = requestChannel.receiveRequest(300)
       val endTime = time.nanoseconds
       val idleTime = endTime - startSelectTime
@@ -156,6 +165,10 @@ class KafkaRequestHandler(
             request.requestDequeueTimeNanos = endTime
             trace(s"Kafka request handler $id on broker $brokerId handling request $request")
             threadCurrentRequest.set(request)
+
+            /**
+             * TODO 交给apis处理请求
+             */
             apis.handle(request, requestLocal)
           } catch {
             case e: FatalExitError =>
@@ -193,12 +206,23 @@ class KafkaRequestHandler(
 
 }
 
+/**
+ * kafka请求处理器池
+ * @param brokerId
+ * @param requestChannel
+ * @param apis
+ * @param time
+ * @param numThreads
+ * @param requestHandlerAvgIdleMetricName
+ * @param logAndThreadNamePrefix
+ * @param nodeName
+ */
 class KafkaRequestHandlerPool(
   val brokerId: Int,
   val requestChannel: RequestChannel,
   val apis: ApiRequestHandler,
   time: Time,
-  numThreads: Int,
+  numThreads: Int, // IO 线程数，默认为 8，在配置文件中可以配置
   requestHandlerAvgIdleMetricName: String,
   logAndThreadNamePrefix : String,
   nodeName: String = "broker"
@@ -211,9 +235,15 @@ class KafkaRequestHandlerPool(
 
   this.logIdent = "[" + logAndThreadNamePrefix + " Kafka Request Handler on Broker " + brokerId + "], "
   val runnables = new mutable.ArrayBuffer[KafkaRequestHandler](numThreads)
+
+  /**
+   * 创建处理broker请求的处理器
+   * 默认创建8个请求处理器
+   */
   for (i <- 0 until numThreads) {
     createHandler(i)
   }
+
 
   def createHandler(id: Int): Unit = synchronized {
     runnables += new KafkaRequestHandler(id, brokerId, aggregateIdleMeter, threadPoolSize, requestChannel, apis, time, nodeName)

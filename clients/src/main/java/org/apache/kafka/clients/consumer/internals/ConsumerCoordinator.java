@@ -448,6 +448,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     }
 
     private boolean coordinatorUnknownAndUnreadySync(Timer timer) {
+        // TODO 确保 协调器 准备好了
         return coordinatorUnknown() && !ensureCoordinatorReady(timer);
     }
 
@@ -479,7 +480,9 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             }
             // Always update the heartbeat last poll time so that the heartbeat thread does not leave the
             // group proactively due to application inactivity even if (say) the coordinator cannot be found.
+            // 始终更新心跳上次轮询时间，以便心跳线程不会由于应用程序不活动而主动离开组，即使 (例如) 找不到协调器。
             pollHeartbeat(timer.currentTimeMs());
+            // TODO 确保协调器准备好了
             if (coordinatorUnknownAndUnreadySync(timer)) {
                 return false;
             }
@@ -508,6 +511,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                 }
 
                 // if not wait for join group, we would just use a timer of 0
+                // TODO 核心代码 确保加入组
                 if (!ensureActiveGroup(waitForJoinGroup ? timer : time.timer(0L))) {
                     // since we may use a different timer in the callee, we'd still need
                     // to update the original timer's current time after the call
@@ -531,6 +535,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             client.pollNoWakeup();
         }
 
+        // TODO poll数据的时候，自动提交上一次拉取的数据
         maybeAutoCommitOffsetsAsync(timer.currentTimeMs());
         return true;
     }
@@ -903,6 +908,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
      */
     public boolean initWithCommittedOffsetsIfNeeded(Timer timer) {
         final Set<TopicPartition> initializingPartitions = subscriptions.initializingPartitions();
+        // TODO
         final Map<TopicPartition, OffsetAndMetadata> offsets = fetchCommittedOffsets(initializingPartitions, timer);
 
         // "offsets" will be null if the offset fetch requests did not receive responses within the given timeout
@@ -924,6 +930,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         if (partitions.isEmpty()) return Collections.emptyMap();
 
         final Generation generationForOffsetRequest = generationIfStable();
+        // 挂起的已提交的offset请求与当前请求进行判断，如果不相同，则重新发起
         if (pendingCommittedOffsetRequest != null &&
             !pendingCommittedOffsetRequest.sameRequest(partitions, generationForOffsetRequest)) {
             // if we were waiting for a different request, then just clear it.
@@ -939,9 +946,11 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             if (pendingCommittedOffsetRequest != null) {
                 future = pendingCommittedOffsetRequest.response;
             } else {
+                // TODO 发起 OFFSET_FETCH 请求
                 future = sendOffsetFetchRequest(partitions);
                 pendingCommittedOffsetRequest = new PendingCommittedOffsetRequest(partitions, generationForOffsetRequest, future);
             }
+            // TODO 调用client.poll 发起网络IO
             client.poll(future, timer);
 
             if (future.isDone()) {

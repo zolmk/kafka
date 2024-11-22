@@ -329,6 +329,9 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
                 retryBackoffMaxMs,
                 true
             );
+            /**
+             * TODO 初始化了一个消费者协调器
+             */
             this.coordinator = new ConsumerCoordinator(
                 rebalanceConfig,
                 logContext,
@@ -461,6 +464,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
                 // treat subscribing to empty topic list as the same as unsubscribing
                 this.unsubscribe();
             } else {
+                // 检查空字符串
                 for (String topic : topics) {
                     if (isBlank(topic))
                         throw new IllegalArgumentException("Topic collection to subscribe to cannot contain null or empty topic");
@@ -479,6 +483,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
                 fetcher.clearBufferedDataForUnassignedPartitions(currentTopicPartitions);
 
                 log.info("Subscribed to topic(s): {}", String.join(", ", topics));
+                // 如果有订阅新的topic，则请求更新元数据信息
                 if (this.subscriptions.subscribe(new HashSet<>(topics), listener))
                     metadata.requestUpdateForNewTopics();
             }
@@ -613,8 +618,12 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
 
                 if (includeMetadataInTimeout) {
                     // try to update assignment metadata BUT do not need to block on the timer for join group
+                    // 尝试更新分配元数据，但不需要在计时器上阻止加入组
+
+                    // TODO 与 Coordinator 交互 更新分配元数据
                     updateAssignmentMetadataIfNeeded(timer, false);
                 } else {
+
                     while (!updateAssignmentMetadataIfNeeded(time.timer(Long.MAX_VALUE), true)) {
                         log.warn("Still waiting for metadata");
                     }
@@ -654,10 +663,11 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
     }
 
     boolean updateAssignmentMetadataIfNeeded(final Timer timer, final boolean waitForJoinGroup) {
+        // 加入组
         if (coordinator != null && !coordinator.poll(timer, waitForJoinGroup)) {
             return false;
         }
-
+        // TODO 如果走到了这里说明已经 加入组 并且 sync_group 成功
         return updateFetchPositions(timer);
     }
 
@@ -669,12 +679,14 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
                 Math.min(coordinator.timeToNextPoll(timer.currentTimeMs()), timer.remainingMs());
 
         // if data is available already, return it immediately
+        // 如果数据可用，立即返回
         final Fetch<K, V> fetch = fetcher.collectFetch();
         if (!fetch.isEmpty()) {
             return fetch;
         }
 
         // send any new fetches (won't resend pending fetches)
+        // 发送fetch请求
         sendFetches();
 
         // We do not want to be stuck blocking in poll if we are missing some positions
@@ -1191,6 +1203,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
         // coordinator lookup if there are partitions which have missing positions, so
         // a consumer with manually assigned partitions can avoid a coordinator dependence
         // by always ensuring that assigned partitions have an initial position.
+        // TODO 更新offsets
         if (coordinator != null && !coordinator.initWithCommittedOffsetsIfNeeded(timer)) return false;
 
         // If there are partitions still needing a position and a reset policy is defined,

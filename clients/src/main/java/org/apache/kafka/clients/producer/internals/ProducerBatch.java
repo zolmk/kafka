@@ -82,8 +82,14 @@ public final class ProducerBatch {
     private boolean reopened;
 
     // Tracks the current-leader's epoch to which this batch would be sent, in the current to produce the batch.
+    /**
+     * 跟踪此批次将发送到的当前领导者的纪元，以生成该批次。
+     */
     private OptionalInt currentLeaderEpoch;
     // Tracks the attempt in which leader was changed to currentLeaderEpoch for the 1st time.
+    /**
+     * 跟踪第一次将leader更改为currentLeaderEpoch的尝试。
+     */
     private int attemptsWhenLeaderLastChanged;
 
     public ProducerBatch(TopicPartition tp, MemoryRecordsBuilder recordsBuilder, long createdMs) {
@@ -115,6 +121,7 @@ public final class ProducerBatch {
             && (!currentLeaderEpoch.isPresent() || currentLeaderEpoch.getAsInt() < latestLeaderEpoch.getAsInt())) {
             log.trace("For {}, leader will be updated, currentLeaderEpoch: {}, attemptsWhenLeaderLastChanged:{}, latestLeaderEpoch: {}, current attempt: {}",
                 this, currentLeaderEpoch, attemptsWhenLeaderLastChanged, latestLeaderEpoch, attempts);
+            // Leader被更新了
             attemptsWhenLeaderLastChanged = attempts();
             currentLeaderEpoch = latestLeaderEpoch;
         } else {
@@ -124,14 +131,18 @@ public final class ProducerBatch {
     }
 
     /**
+     * 它将返回true，因为当正在重试批时，它将被重试到较新的领导者。
      * It will return true, for a when batch is being retried, it will be retried to a newer leader.
      */
 
     boolean hasLeaderChangedForTheOngoingRetry() {
+        // 已尝试次数 第一次的话 attempts为0
         int attempts = attempts();
         boolean isRetry = attempts >= 1;
         if (!isRetry)
+            // 未重试过 第一次走这里
             return false;
+        // 当前尝试次数是否等于leader变更时的尝试次数
         return attempts == attemptsWhenLeaderLastChanged;
     }
 
@@ -142,6 +153,7 @@ public final class ProducerBatch {
      * @return The RecordSend corresponding to this record or null if there isn't sufficient room.
      */
     public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers, Callback callback, long now) {
+        // 判断有没有空间来写入
         if (!recordsBuilder.hasRoomFor(timestamp, key, value, headers)) {
             return null;
         } else {
@@ -299,9 +311,11 @@ public final class ProducerBatch {
         // Set the future before invoking the callbacks as we rely on its state for the `onCompletion` call
         produceFuture.set(baseOffset, logAppendTime, recordExceptions);
 
+        // 遍历执行所有的回调函数
         // execute callbacks
         for (int i = 0; i < thunks.size(); i++) {
             try {
+                // Thunk里面封装了消息的回调函数，一条消息对应一个Thunk。
                 Thunk thunk = thunks.get(i);
                 if (thunk.callback != null) {
                     if (recordExceptions == null) {
@@ -411,6 +425,12 @@ public final class ProducerBatch {
         return "ProducerBatch(topicPartition=" + topicPartition + ", recordCount=" + recordCount + ")";
     }
 
+    /**
+     * 判断是否投递超时
+     * @param deliveryTimeoutMs
+     * @param now
+     * @return
+     */
     boolean hasReachedDeliveryTimeout(long deliveryTimeoutMs, long now) {
         return deliveryTimeoutMs <= now - this.createdMs;
     }

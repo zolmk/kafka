@@ -45,6 +45,7 @@ final class InFlightRequests {
     public void add(NetworkClient.InFlightRequest request) {
         String destination = request.destination;
         Deque<NetworkClient.InFlightRequest> reqs = this.requests.computeIfAbsent(destination, k -> new ArrayDeque<>());
+        // TODO :注意这里是添加到队头！！！！
         reqs.addFirst(request);
         inFlightRequestCount.incrementAndGet();
     }
@@ -63,6 +64,7 @@ final class InFlightRequests {
      * Get the oldest request (the one that will be completed next) for the given node
      */
     public NetworkClient.InFlightRequest completeNext(String node) {
+        // 获取最旧的请求
         NetworkClient.InFlightRequest inFlightRequest = requestQueue(node).pollLast();
         inFlightRequestCount.decrementAndGet();
         return inFlightRequest;
@@ -96,6 +98,8 @@ final class InFlightRequests {
     public boolean canSendMore(String node) {
         Deque<NetworkClient.InFlightRequest> queue = requests.get(node);
         return queue == null || queue.isEmpty() ||
+                 // 队头已发送完成 且 队列大小小于最大进行中的请求数
+                 // TODO: 新的send是从队头添加的，所以如果队头发送完成，证明队列中的都已经发送完成了！！！！！！！！
                (queue.peekFirst().send.completed() && queue.size() < this.maxInFlightRequestsPerConnection);
     }
 
@@ -156,6 +160,7 @@ final class InFlightRequests {
         for (NetworkClient.InFlightRequest request : deque) {
             // We exclude throttle time here because we want to ensure that we don't expire requests while
             // they are throttled. The request timeout should take effect only after the throttle time has elapsed.
+            // 我们在这里排除了节流时间，因为我们希望确保在限制请求时不会使请求过期。请求超时应仅在限制时间过后才生效。
             if (request.timeElapsedSinceSendMs(now) - request.throttleTimeMs() > request.requestTimeoutMs)
                 return true;
         }
@@ -173,6 +178,7 @@ final class InFlightRequests {
         for (Map.Entry<String, Deque<NetworkClient.InFlightRequest>> requestEntry : requests.entrySet()) {
             String nodeId = requestEntry.getKey();
             Deque<NetworkClient.InFlightRequest> deque = requestEntry.getValue();
+            // 队列中是否有过期请求
             if (hasExpiredRequest(now, deque))
                 nodeIds.add(nodeId);
         }

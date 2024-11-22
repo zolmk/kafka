@@ -146,6 +146,9 @@ private[group] class GroupCoordinator(
       //    if the max group size was reduced.
       // 2) using the number of awaiting members allows to kick out the last rejoining
       //    members of the group.
+
+      // 如果现有成员已经在等待，则接受该成员。接受新成员，直至达到最大组大小。注意，这里使用等待成员的数量有两个原因: 1) 组大小不可靠，因为如果最大组大小减小，它可能已经超过最大组大小。2) 使用等待成员的数量允许踢出该组的最后重新加入的成员。
+      // TODO reblance 走这里
       case PreparingRebalance =>
         (group.has(member) && group.get(member).isAwaitingJoin) ||
           group.numAwaiting < groupConfig.groupMaxSize
@@ -184,16 +187,19 @@ private[group] class GroupCoordinator(
       val isUnknownMember = memberId == JoinGroupRequest.UNKNOWN_MEMBER_ID
       // group is created if it does not exist and the member id is UNKNOWN. if member
       // is specified but group does not exist, request is rejected with UNKNOWN_MEMBER_ID
+      //TODO 获取组，如果不存在，则创建
       groupManager.getOrMaybeCreateGroup(groupId, isUnknownMember) match {
         case None =>
           responseCallback(JoinGroupResult(memberId, Errors.UNKNOWN_MEMBER_ID))
         case Some(group) =>
           group.inLock {
             val joinReason = reason.getOrElse("not provided")
+            // 验证组是否有空间接受加入成员。
             if (!acceptJoiningMember(group, memberId)) {
               group.remove(memberId)
               responseCallback(JoinGroupResult(JoinGroupRequest.UNKNOWN_MEMBER_ID, Errors.GROUP_MAX_SIZE_REACHED))
             } else if (isUnknownMember) {
+              // TODO 新成员入组
               doNewMemberJoinGroup(
                 group,
                 groupInstanceId,
@@ -262,6 +268,7 @@ private[group] class GroupCoordinator(
         val newMemberId = group.generateMemberId(clientId, groupInstanceId)
         groupInstanceId match {
           case Some(instanceId) =>
+            // TODO
             doStaticNewMemberJoinGroup(
               group,
               instanceId,
@@ -331,6 +338,7 @@ private[group] class GroupCoordinator(
         )
 
       case None =>
+        // TODO  首次进入，应为None
         info(s"Static member with groupInstanceId=$groupInstanceId and unknown member id joins " +
           s"group ${group.groupId} in ${group.currentState} state. Created a new member id $newMemberId " +
           s"for this member and add to the group.")
@@ -379,6 +387,9 @@ private[group] class GroupCoordinator(
     // We are validating two things:
     // 1. If `groupInstanceId` is present, then it exists and is mapped to `memberId`
     // 2. The `memberId` exists in the group
+    // 我们正在验证两件事:
+    // 1。如果 “groupinstanceid” 存在，则它存在并映射到 “memberid”
+    // 2。组中存在 “memberid”
     groupInstanceId.flatMap { instanceId =>
       group.currentStaticMemberId(instanceId) match {
         case Some(currentMemberId) if currentMemberId != memberId =>
@@ -444,6 +455,7 @@ private[group] class GroupCoordinator(
           case Some(error) => responseCallback(JoinGroupResult(memberId, error))
 
           case None => group.currentState match {
+            // TODO reblance 走这里
             case PreparingRebalance =>
               val member = group.get(memberId)
               updateMemberAndRebalance(group, member, protocols, rebalanceTimeoutMs, sessionTimeoutMs, s"Member ${member.memberId} joining group during ${group.currentState}; client reason: $reason", responseCallback)
@@ -624,6 +636,7 @@ private[group] class GroupCoordinator(
                       resetAndPropagateAssignmentError(group, error)
                       maybePrepareRebalance(group, s"Error $error when storing group assignment during SyncGroup (member: $memberId)")
                     } else {
+                      // TODO 下发分配方案
                       setAndPropagateAssignment(group, assignment)
                       group.transitionTo(Stable)
                     }
@@ -843,6 +856,9 @@ private[group] class GroupCoordinator(
                       groupInstanceId: Option[String],
                       generationId: Int,
                       responseCallback: Errors => Unit): Unit = {
+    /**
+     * 验证组状态
+     */
     validateGroupStatus(groupId, ApiKeys.HEARTBEAT).foreach { error =>
       if (error == Errors.COORDINATOR_LOAD_IN_PROGRESS)
         // the group is still loading, so respond just blindly
@@ -857,6 +873,7 @@ private[group] class GroupCoordinator(
         Errors.UNKNOWN_MEMBER_ID
 
       case Some(group) => group.inLock {
+        // 验证当前成员
         val validationErrorOpt = validateHeartbeat(
           group,
           generationId,
@@ -885,6 +902,7 @@ private[group] class GroupCoordinator(
 
             case Stable =>
                 val member = group.get(memberId)
+                // 调度下一次的心跳任务
                 completeAndScheduleNextHeartbeatExpiration(group, member)
                 Errors.NONE
 
@@ -1069,6 +1087,7 @@ private[group] class GroupCoordinator(
         isTransactional = false
       )
 
+      // TODO 根据groupID计算应该投递到哪一个分区中
       val offsetTopicPartition = new TopicPartition(Topic.GROUP_METADATA_TOPIC_NAME, partitionFor(group.groupId))
 
       if (validationErrorOpt.isDefined) {
@@ -1246,6 +1265,7 @@ private[group] class GroupCoordinator(
   private def setAndPropagateAssignment(group: GroupMetadata, assignment: Map[String, Array[Byte]]): Unit = {
     assert(group.is(CompletingRebalance))
     group.allMemberMetadata.foreach(member => member.assignment = assignment(member.memberId))
+    // TODO 传播分配方案
     propagateAssignment(group, Errors.NONE)
   }
 
@@ -1264,7 +1284,7 @@ private[group] class GroupCoordinator(
       if (member.assignment.isEmpty && error == Errors.NONE) {
         warn(s"Sending empty assignment to member ${member.memberId} of ${group.groupId} for generation ${group.generationId} with no errors")
       }
-
+      // TODO 遍历成员 调用回调函数
       if (group.maybeInvokeSyncCallback(member, SyncGroupResult(protocolType, protocolName, member.assignment, error))) {
         // reset the session timeout for members after propagating the member's assignment.
         // This is because if any member's session expired while we were still awaiting either
@@ -1282,6 +1302,12 @@ private[group] class GroupCoordinator(
     completeAndScheduleNextExpiration(group, member, member.sessionTimeoutMs)
   }
 
+  /**
+   * 完成上一次的心跳定时任务，并开启下一轮的心跳调度任务
+   * @param group
+   * @param member
+   * @param timeoutMs
+   */
   private def completeAndScheduleNextExpiration(group: GroupMetadata, member: MemberMetadata, timeoutMs: Long): Unit = {
     val memberKey = MemberKey(group.groupId, member.memberId)
 
@@ -1320,6 +1346,7 @@ private[group] class GroupCoordinator(
                                     group: GroupMetadata,
                                     callback: JoinCallback,
                                     reason: String): Unit = {
+    // 为当前消费者创建元数据信息
     val member = new MemberMetadata(memberId, groupInstanceId, clientId, clientHost,
       rebalanceTimeoutMs, sessionTimeoutMs, protocolType, protocols)
 
@@ -1328,7 +1355,7 @@ private[group] class GroupCoordinator(
     // update the newMemberAdded flag to indicate that the join group can be further delayed
     if (group.is(PreparingRebalance) && group.generationId == 0)
       group.newMemberAdded = true
-
+    // TODO 将成员加入组
     group.add(member, callback)
 
     // The session timeout does not affect new members since they do not have their memberId and
@@ -1493,6 +1520,7 @@ private[group] class GroupCoordinator(
     else
       new DelayedJoin(this, group, group.rebalanceTimeoutMs)
 
+    // TODO 转移当前组的状态
     group.transitionTo(PreparingRebalance)
 
     info(s"Preparing to rebalance group ${group.groupId} in state ${group.currentState} with old generation " +
@@ -1506,12 +1534,14 @@ private[group] class GroupCoordinator(
     // New members may timeout with a pending JoinGroup while the group is still rebalancing, so we have
     // to invoke the callback before removing the member. We return UNKNOWN_MEMBER_ID so that the consumer
     // will retry the JoinGroup request if is still active.
+    // 当组仍在重新平衡时，新成员可能会因挂起JoinGroup而超时，因此我们必须在删除成员之前调用回调。
+    // 我们返回UNKNOWN_MEMBER_ID，以便使用者在仍然处于活动状态时重试JoinGroup请求
     group.maybeInvokeJoinCallback(member, JoinGroupResult(JoinGroupRequest.UNKNOWN_MEMBER_ID, Errors.UNKNOWN_MEMBER_ID))
     group.remove(member.memberId)
 
     group.currentState match {
       case Dead | Empty =>
-      case Stable | CompletingRebalance => maybePrepareRebalance(group, reason)
+      case Stable | CompletingRebalance => maybePrepareRebalance(group, reason) // TODO rebalance
       case PreparingRebalance => rebalancePurgatory.checkAndComplete(GroupJoinKey(group.groupId))
     }
   }
@@ -1728,6 +1758,7 @@ private[group] class GroupCoordinator(
         val member = group.get(memberId)
         if (!member.hasSatisfiedHeartbeat) {
           info(s"Member ${member.memberId} in group ${group.groupId} has failed, removing it from the group")
+          // TODO 移除超时成员并更新组
           removeMemberAndUpdateGroup(group, member, s"removing member ${member.memberId} on heartbeat expiration")
         }
       }

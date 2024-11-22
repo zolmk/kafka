@@ -79,15 +79,27 @@ public class NetworkReceive implements Receive {
         return !size.hasRemaining() && buffer != null && !buffer.hasRemaining();
     }
 
+
+    /**
+     * 从channel中读取字节，包头附加长度信息来解决粘包问题
+     * @param channel The channel to read from
+     * @return
+     * @throws IOException
+     */
     public long readFrom(ScatteringByteChannel channel) throws IOException {
         int read = 0;
+        // size未读全
         if (size.hasRemaining()) {
+            // 读取数据流长度
             int bytesRead = channel.read(size);
             if (bytesRead < 0)
                 throw new EOFException();
             read += bytesRead;
+            // 如果size读完了
             if (!size.hasRemaining()) {
+                // 充值position指针
                 size.rewind();
+                // 获取接收的数据流长度
                 int receiveSize = size.getInt();
                 if (receiveSize < 0)
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + ")");

@@ -149,7 +149,9 @@ public class OffsetIndex extends AbstractIndex {
 
             if (entries() == 0 || offset > lastOffset) {
                 log.trace("Adding index entry {} => {} to {}", offset, position, file().getAbsolutePath());
+                // 逻辑偏移量
                 mmap().putInt(relativeOffset(offset));
+                // 磁盘位置
                 mmap().putInt(position);
                 incrementEntries();
                 lastOffset = offset;

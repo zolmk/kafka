@@ -26,8 +26,14 @@ public class PartitionInfo {
     private final String topic;
     private final int partition;
     private final Node leader;
+
+    /* 当前分区所有的副本所在的节点 */
     private final Node[] replicas;
+
+    /* ISR列表 */
     private final Node[] inSyncReplicas;
+
+    /* 离线副本所在的节点 ?*/
     private final Node[] offlineReplicas;
 
     public PartitionInfo(String topic, int partition, Node leader, Node[] replicas, Node[] inSyncReplicas) {

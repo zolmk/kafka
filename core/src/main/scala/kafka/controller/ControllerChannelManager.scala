@@ -49,6 +49,11 @@ object ControllerChannelManager {
   private val RequestRateAndQueueTimeMetricName = "RequestRateAndQueueTimeMs"
 }
 
+/**
+ * 控制通道管理器
+ * TODO controller 与其他的 broker相连，这个ControllerChannelManager负责管理与其他broker的通信，网络IO
+ * 每个channel都有对应的
+ */
 class ControllerChannelManager(controllerEpoch: () => Int,
                                config: KafkaConfig,
                                time: Time,
@@ -114,6 +119,10 @@ class ControllerChannelManager(controllerEpoch: () => Int,
     }
   }
 
+  /**
+   * 添加新的broker到控制器
+   * @param broker
+   */
   private def addNewBroker(broker: Broker): Unit = {
     val messageQueue = new LinkedBlockingQueue[QueueItem]
     debug(s"Controller ${config.brokerId} trying to connect to broker ${broker.id}")
@@ -178,12 +187,16 @@ class ControllerChannelManager(controllerEpoch: () => Int,
       RequestRateAndQueueTimeMetricName, TimeUnit.MILLISECONDS, TimeUnit.SECONDS, brokerMetricTags(broker.id)
     )
 
+    /**
+     * 与其他broker收发消息的请求发送线程
+     */
     val requestThread = new RequestSendThread(config.brokerId, controllerEpoch, messageQueue, networkClient,
       brokerNode, config, time, requestRateAndQueueTimeMetrics, stateChangeLogger, threadName)
     requestThread.setDaemon(false)
 
     val queueSizeGauge = metricsGroup.newGauge(QueueSizeMetricName, () => messageQueue.size, brokerMetricTags(broker.id))
 
+    // TODO 将对应的broker状态信息存入到map中，方便后续获取
     brokerStateInfo.put(broker.id, ControllerBrokerStateInfo(networkClient, brokerNode, messageQueue,
       requestThread, queueSizeGauge, requestRateAndQueueTimeMetrics, reconfigurableChannelBuilder))
   }
@@ -239,7 +252,9 @@ class RequestSendThread(val controllerId: Int,
 
     def backoff(): Unit = pause(100, TimeUnit.MILLISECONDS)
 
+    // 从队列中获取请求，如果未获取到，将一直等待
     val QueueItem(apiKey, requestBuilder, callback, enqueueTimeMs) = queue.take()
+
     requestRateAndQueueTimeMetrics.update(time.milliseconds() - enqueueTimeMs, TimeUnit.MILLISECONDS)
 
     var clientResponse: ClientResponse = null
@@ -256,6 +271,7 @@ class RequestSendThread(val controllerId: Int,
           else {
             val clientRequest = networkClient.newClientRequest(brokerNode.idString, requestBuilder,
               time.milliseconds(), true)
+            // TODO 采用阻塞模式，发送然后等待响应
             clientResponse = NetworkClientUtils.sendAndReceive(networkClient, clientRequest, time)
             isSendSuccessful = true
           }
@@ -282,6 +298,7 @@ class RequestSendThread(val controllerId: Int,
           s"${requestHeader.correlationId} sent to broker $brokerNode")
 
         if (callback != null) {
+          // 调用回调函数处理请求
           callback(response)
         }
       }
@@ -563,6 +580,7 @@ abstract class AbstractControllerBrokerRequestBatch(config: KafkaConfig,
         )
         sendRequest(broker, leaderAndIsrRequestBuilder, (r: AbstractResponse) => {
           val leaderAndIsrResponse = r.asInstanceOf[LeaderAndIsrResponse]
+          // 当发送请求到 broker 成功后，执行下面的函数
           handleLeaderAndIsrResponse(leaderAndIsrResponse, broker)
         })
       }

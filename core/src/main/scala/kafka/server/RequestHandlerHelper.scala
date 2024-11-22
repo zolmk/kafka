@@ -175,6 +175,7 @@ class RequestHandlerHelper(
                                  response: AbstractResponse,
                                  onComplete: Option[Send => Unit] = None): Unit = {
     quotas.request.maybeRecordExempt(request)
+    // 最终将响应放入到 Processor队列中
     requestChannel.sendResponse(request, response, onComplete)
   }
 

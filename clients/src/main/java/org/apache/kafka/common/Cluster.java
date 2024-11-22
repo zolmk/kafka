@@ -35,16 +35,29 @@ import java.util.Set;
 public final class Cluster {
 
     private final boolean isBootstrapConfigured;
+    /** kafka集群信息 */
     private final List<Node> nodes;
+    /* 未授权topic */
     private final Set<String> unauthorizedTopics;
     private final Set<String> invalidTopics;
     private final Set<String> internalTopics;
     private final Node controller;
+    /* topic的分区对应的分区信息 */
     private final Map<TopicPartition, PartitionInfo> partitionsByTopicPartition;
+
+    /* topic对应的所有分区信息 */
     private final Map<String, List<PartitionInfo>> partitionsByTopic;
+
+    /* topic对应的可用分区的分区信息 */
     private final Map<String, List<PartitionInfo>> availablePartitionsByTopic;
+
+    /* 服务器编号上有哪些分区 */
     private final Map<Integer, List<PartitionInfo>> partitionsByNode;
+
+    /* 服务器编号和服务器的对应关系 */
     private final Map<Integer, Node> nodesById;
+
+    /* 集群的ID信息 */
     private final ClusterResource clusterResource;
     private final Map<String, Uuid> topicIds;
     private final Map<Uuid, String> topicNames;

@@ -29,6 +29,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
+ * 使用了线性探测法来解决hash冲突问题
+ *
  * A memory-efficient hash set which tracks the order of insertion of elements.
  *
  * Like java.util.LinkedHashSet, this collection maintains a linked list of elements.

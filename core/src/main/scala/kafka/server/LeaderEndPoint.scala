@@ -37,6 +37,7 @@ trait LeaderEndPoint {
 
   /**
    * A boolean specifying if truncation when fetching from the leader is supported
+   * 一个布尔值，指定是否支持从leader拉取时截断
    */
   def isTruncationOnFetchSupported: Boolean
 

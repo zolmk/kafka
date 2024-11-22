@@ -144,6 +144,9 @@ public abstract class AbstractCoordinator implements Closeable {
     private String rejoinReason = "";
     private boolean rejoinNeeded = true;
     private boolean needsJoinPrepare = true;
+    /**
+     * TODO 心跳线程
+     */
     private HeartbeatThread heartbeatThread = null;
     private RequestFuture<ByteBuffer> joinFuture = null;
     private RequestFuture<Void> findCoordinatorFuture = null;
@@ -286,7 +289,9 @@ public abstract class AbstractCoordinator implements Closeable {
                 fatalFindCoordinatorException = null;
                 throw fatalException;
             }
+            // TODO lookup 协调器 发送
             final RequestFuture<Void> future = lookupCoordinator();
+            // TODO 阻塞直到收到响应 并处理完后
             client.poll(future, timer, disableWakeup);
 
             if (!future.isDone()) {
@@ -321,8 +326,10 @@ public abstract class AbstractCoordinator implements Closeable {
     }
 
     protected synchronized RequestFuture<Void> lookupCoordinator() {
+        // 这里如果findCoordinatorFuture不为空 说明之前发送，则跳过
         if (findCoordinatorFuture == null) {
             // find a node to ask about the coordinator
+            // TODO 找一台服务器
             Node node = this.client.leastLoadedNode();
             if (node == null) {
                 log.debug("No broker available to send FindCoordinator request");
@@ -412,6 +419,7 @@ public abstract class AbstractCoordinator implements Closeable {
         }
 
         startHeartbeatThreadIfNeeded();
+        // TODO 加入组
         return joinGroupIfNeeded(timer);
     }
 
@@ -466,6 +474,7 @@ public abstract class AbstractCoordinator implements Closeable {
             // refresh which changes the matched subscription set) can occur while another rebalance is
             // still in progress.
             if (needsJoinPrepare) {
+                // 是否需要加入前准备
                 // need to set the flag before calling onJoinPrepare since the user callback may throw
                 // exception, in which case upon retry we should not retry onJoinPrepare either.
                 needsJoinPrepare = false;
@@ -477,12 +486,16 @@ public abstract class AbstractCoordinator implements Closeable {
                 }
             }
 
+            // TODO 发送加入组的请求，如果已发送过，会直接返回之前的Future对象
             final RequestFuture<ByteBuffer> future = initiateJoinGroup();
+
+            // TODO 调用poll方法处理Channel中的IO事件
             client.poll(future, timer);
             if (!future.isDone()) {
                 // we ran out of time
                 return false;
             }
+
 
             if (future.succeeded()) {
                 Generation generationSnapshot;
@@ -500,7 +513,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 if (!hasGenerationReset(generationSnapshot) && stateSnapshot == MemberState.STABLE) {
                     // Duplicate the buffer in case `onJoinComplete` does not complete and needs to be retried.
                     ByteBuffer memberAssignment = future.value().duplicate();
-
+                    // TODO JOIN_GROUP 和 SYNC_GROUP 都已完成，可以更新分配方案了
                     onJoinComplete(generationSnapshot.generationId, generationSnapshot.memberId, generationSnapshot.protocolName, memberAssignment);
 
                     // Generally speaking we should always resetJoinGroupFuture once the future is done, but here
@@ -567,6 +580,7 @@ public abstract class AbstractCoordinator implements Closeable {
             // in this case we would not update the start time.
             if (lastRebalanceStartMs == -1L)
                 lastRebalanceStartMs = time.milliseconds();
+            //TODO  发送加入组请求
             joinFuture = sendJoinGroupRequest();
             joinFuture.addListener(new RequestFutureListener<ByteBuffer>() {
                 @Override
@@ -625,6 +639,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 rebalanceConfig.rebalanceTimeoutMs + JOIN_GROUP_TIMEOUT_LAPSE,
                 rebalanceConfig.rebalanceTimeoutMs) // guard against overflow since rebalance timeout can be MAX_VALUE
             );
+        // TODO 使用client发送 JOIN_GROUP 请求，并进行处理
         return client.send(coordinator, requestBuilder, joinGroupTimeoutMs)
                 .compose(new JoinGroupResponseHandler(generation));
     }
@@ -656,6 +671,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
                             // we only need to enable heartbeat thread whenever we transit to
                             // COMPLETING_REBALANCE state since we always transit from this state to STABLE
+                            // TODO 加入组成功后，开启心跳线程
                             if (heartbeatThread != null)
                                 heartbeatThread.enable();
 
@@ -668,6 +684,7 @@ public abstract class AbstractCoordinator implements Closeable {
                                 Collections.singletonMap(ClientTelemetryProvider.GROUP_MEMBER_ID, joinResponse.data().memberId())));
 
                             if (joinResponse.isLeader()) {
+                                // 当前consumer是leader
                                 onLeaderElected(joinResponse).chain(future);
                             } else {
                                 onJoinFollower().chain(future);
@@ -791,6 +808,7 @@ public abstract class AbstractCoordinator implements Closeable {
                                     .setAssignments(groupAssignmentList)
                     );
             log.debug("Sending leader SyncGroup to coordinator {}: {}", this.coordinator, requestBuilder);
+            //TODO 发送 SYNC_GROUP请求 分配方案给coordinate
             return sendSyncGroupRequest(requestBuilder);
         } catch (RuntimeException e) {
             return RequestFuture.failure(e);
@@ -903,11 +921,13 @@ public abstract class AbstractCoordinator implements Closeable {
      */
     private RequestFuture<Void> sendFindCoordinatorRequest(Node node) {
         log.debug("Sending FindCoordinator request to broker {}", node);
+        // TODO 发送请求
         FindCoordinatorRequestData data = new FindCoordinatorRequestData()
                 .setKeyType(CoordinatorType.GROUP.id())
                 .setKey(this.rebalanceConfig.groupId);
         FindCoordinatorRequest.Builder requestBuilder = new FindCoordinatorRequest.Builder(data);
         return client.send(node, requestBuilder)
+                 // 对响应进行处理 TODO 这两个组合在一起，再结合后面的 while(!future.isDone)可以得知，只有当发出请求，收到响应并处理后，才会向下执行
                 .compose(new FindCoordinatorResponseHandler());
     }
 
@@ -930,11 +950,15 @@ public abstract class AbstractCoordinator implements Closeable {
                     // for the coordinator in the underlying network client layer
                     int coordinatorConnectionId = Integer.MAX_VALUE - coordinatorData.nodeId();
 
+                    /**
+                     * 封装一台coordinator
+                     */
                     AbstractCoordinator.this.coordinator = new Node(
                             coordinatorConnectionId,
                             coordinatorData.host(),
                             coordinatorData.port());
                     log.info("Discovered group coordinator {}", coordinator);
+                    // 尝试连接 协调器
                     client.tryConnect(coordinator);
                     heartbeat.resetSessionTimeout();
                 }
@@ -1486,6 +1510,7 @@ public abstract class AbstractCoordinator implements Closeable {
                             return;
 
                         if (!enabled) {
+                            // TODO 如果心跳线程处于 disable状态，则等待 enable
                             AbstractCoordinator.this.wait();
                             continue;
                         }
@@ -1526,6 +1551,7 @@ public abstract class AbstractCoordinator implements Closeable {
                             // exponential backoff.
                             AbstractCoordinator.this.wait(rebalanceConfig.retryBackoffMs);
                         } else {
+                            // TODO 发送心跳包
                             heartbeat.sentHeartbeat(now);
                             final RequestFuture<Void> heartbeatFuture = sendHeartbeatRequest();
                             heartbeatFuture.addListener(new RequestFutureListener<Void>() {

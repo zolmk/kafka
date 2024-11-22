@@ -38,7 +38,7 @@ class ReplicaFetcherThread(name: String,
                                 leader = leader,
                                 failedPartitions,
                                 fetchTierStateMachine = new TierStateMachine(leader, replicaMgr, false),
-                                fetchBackOffMs = brokerConfig.replicaFetchBackoffMs,
+                                fetchBackOffMs = brokerConfig.replicaFetchBackoffMs, // 默认值 1s
                                 isInterruptible = false,
                                 replicaMgr.brokerTopicStats) {
 
@@ -100,6 +100,14 @@ class ReplicaFetcherThread(name: String,
   }
 
   // process fetched data
+
+  /**
+   * 处理拉取到的分区数据
+   * @param topicPartition
+   * @param fetchOffset
+   * @param partitionData
+   * @return
+   */
   override def processPartitionData(topicPartition: TopicPartition,
                                     fetchOffset: Long,
                                     partitionData: FetchData): Option[LogAppendInfo] = {
@@ -119,6 +127,7 @@ class ReplicaFetcherThread(name: String,
         .format(log.logEndOffset, topicPartition, records.sizeInBytes, partitionData.highWatermark))
 
     // Append the leader's messages to the log
+    // TODO 将分区写入到Follower中
     val logAppendInfo = partition.appendRecordsToFollowerOrFutureReplica(records, isFuture = false)
 
     if (logTrace)
@@ -129,11 +138,14 @@ class ReplicaFetcherThread(name: String,
     // For the follower replica, we do not need to keep its segment base offset and physical position.
     // These values will be computed upon becoming leader or handling a preferred read replica fetch.
     var maybeUpdateHighWatermarkMessage = s"but did not update replica high watermark"
+
+    // TODO 更新本地follower的 HW 指标
     log.maybeUpdateHighWatermark(partitionData.highWatermark).foreach { newHighWatermark =>
       maybeUpdateHighWatermarkMessage = s"and updated replica high watermark to $newHighWatermark"
       partitionsWithNewHighWatermark += topicPartition
     }
 
+    // 更新LSO
     log.maybeIncrementLogStartOffset(leaderLogStartOffset, LogStartOffsetIncrementReason.LeaderOffsetIncremented)
     if (logTrace)
       trace(s"Follower received high watermark ${partitionData.highWatermark} from the leader " +
@@ -154,6 +166,7 @@ class ReplicaFetcherThread(name: String,
 
   private def completeDelayedFetchRequests(): Unit = {
     if (partitionsWithNewHighWatermark.nonEmpty) {
+      // 更新副本管理器中的 HW 的值
       replicaMgr.completeDelayedFetchRequests(partitionsWithNewHighWatermark.toSeq)
       partitionsWithNewHighWatermark.clear()
     }

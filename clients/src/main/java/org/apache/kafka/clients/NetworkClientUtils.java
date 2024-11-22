@@ -93,6 +93,7 @@ public final class NetworkClientUtils {
         try {
             client.send(request, time.milliseconds());
             while (client.active()) {
+                // 这里是一定可以获取到响应的，因为超时时间设置的是最大值，如果连接出现异常，会抛出错误
                 List<ClientResponse> responses = client.poll(Long.MAX_VALUE, time.milliseconds());
                 for (ClientResponse response : responses) {
                     if (response.requestHeader().correlationId() == request.correlationId()) {

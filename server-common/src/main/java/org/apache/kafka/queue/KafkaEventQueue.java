@@ -35,7 +35,10 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-
+/**
+ * 该事件队列中的事件将由该事件队列内的KafkaThread来进行执行
+ * 也就是自己消化
+ */
 public final class KafkaEventQueue implements EventQueue {
 
     public static final String EVENT_HANDLER_THREAD_SUFFIX = "event-handler";
@@ -458,6 +461,7 @@ public final class KafkaEventQueue implements EventQueue {
         this.lock = new ReentrantLock();
         this.log = logContext.logger(KafkaEventQueue.class);
         this.eventHandler = new EventHandler();
+        // 创建事件处理线程
         this.eventHandlerThread = new KafkaThread(threadNamePrefix + EVENT_HANDLER_THREAD_SUFFIX,
             this.eventHandler, false);
         this.shuttingDown = false;

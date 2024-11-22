@@ -46,6 +46,12 @@ public interface MetadataUpdater extends Closeable {
     boolean isUpdateDue(long now);
 
     /**
+     *
+     * 如果需要和可能，启动群集元数据更新。
+     * 返回直到元数据更新的时间 (如果此调用已启动更新，则为0)。
+     * 如果实现依赖于 “networkclient” 来发送请求，则将在接收到元数据响应之后调用 “handlesuccessfulresponse”。
+     * “需要” 和 “可能” 的语义是依赖于实现的，并且可以考虑多个因素，如节点可用性、自上次元数据更新以来的时间等
+     *
      * Starts a cluster metadata update if needed and possible. Returns the time until the metadata update (which would
      * be 0 if an update has been started as a result of this call).
      *

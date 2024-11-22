@@ -100,6 +100,7 @@ class DelayedProduce(delayMs: Long,
             (false, err)
 
           case Right(partition) =>
+            // 检查是否有足够的副本的HW和当前leader保持一致
             partition.checkEnoughReplicasReachOffset(status.requiredOffset)
         }
 
@@ -112,9 +113,10 @@ class DelayedProduce(delayMs: Long,
     }
 
     // check if every partition has satisfied at least one of case A, B or C
-    if (!produceMetadata.produceStatus.values.exists(_.acksPending))
+    if (!produceMetadata.produceStatus.values.exists(_.acksPending)) {
+      // 有足够的数量的副本已提交，完成当前延迟任务
       forceComplete()
-    else
+    } else
       false
   }
 
@@ -131,6 +133,7 @@ class DelayedProduce(delayMs: Long,
    * Upon completion, return the current response status along with the error code per partition
    */
   override def onComplete(): Unit = {
+    // 完成当前任务，调用回调函数
     val responseStatus = produceMetadata.produceStatus.map { case (k, status) => k -> status.responseStatus }
     responseCallback(responseStatus)
   }

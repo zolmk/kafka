@@ -86,7 +86,9 @@ object Kafka extends Logging {
 
   def main(args: Array[String]): Unit = {
     try {
+      // 解析程序启动参数
       val serverProps = getPropsFromArgs(args)
+      // 根据配置构建服务
       val server = buildServer(serverProps)
 
       try {
@@ -103,12 +105,14 @@ object Kafka extends Logging {
         try server.shutdown()
         catch {
           case _: Throwable =>
+            // halt 停止 fatal 致命
             fatal("Halting Kafka.")
             // Calling exit() can lead to deadlock as exit() can be called multiple times. Force exit.
             Exit.halt(1)
         }
       })
 
+      // 启动Broker
       try server.startup()
       catch {
         case e: Throwable =>

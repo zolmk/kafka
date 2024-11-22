@@ -59,10 +59,16 @@ case class ReplicaState(
   def logEndOffset: Long = logEndOffsetMetadata.messageOffset
 
   /**
+   *
+   * 当副本被认为是 “赶上” 时，返回true。
+   * 当副本的日志结束偏移等于领导者的日志结束偏移时，或者当副本的最后捕获时间减去当前时间小于最大副本滞后时，副本被视为 “捕获”。
+   *
    * Returns true when the replica is considered as "caught-up". A replica is
    * considered "caught-up" when its log end offset is equals to the log end
    * offset of the leader OR when its last caught up time minus the current
    * time is smaller than the max replica lag.
+   *
+   * caught up 被赶上
    */
   def isCaughtUp(
     leaderEndOffset: Long,
@@ -84,6 +90,12 @@ object ReplicaState {
   )
 }
 
+/**
+ * 分区副本
+ * @param brokerId
+ * @param topicPartition
+ * @param metadataCache
+ */
 class Replica(val brokerId: Int, val topicPartition: TopicPartition, val metadataCache: MetadataCache) extends Logging {
   private val replicaState = new AtomicReference[ReplicaState](ReplicaState.Empty)
 
@@ -112,6 +124,8 @@ class Replica(val brokerId: Int, val topicPartition: TopicPartition, val metadat
     leaderEndOffset: Long,
     brokerEpoch: Long
   ): Unit = {
+    // TODO 最终更新LEO的地方
+    // 后续leader 分区在判断 follower 是否可以从 isr 中移除时，会用到 follower 的 replicaState信息
     replicaState.updateAndGet { currentReplicaState =>
       metadataCache match {
         case kRaftMetadataCache: KRaftMetadataCache =>
@@ -124,11 +138,12 @@ class Replica(val brokerId: Int, val topicPartition: TopicPartition, val metadat
         case _ =>
       }
 
-      val lastCaughtUpTime = if (followerFetchOffsetMetadata.messageOffset >= leaderEndOffset) {
+      // 这里的followerFetchOffsetMetadata.messageOffset 就是 follower 请求中附带的 startOffset，即LEO
+      val lastCaughtUpTime = if (followerFetchOffsetMetadata.messageOffset >= leaderEndOffset) { // 与Leader 同步了
         math.max(currentReplicaState.lastCaughtUpTimeMs, followerFetchTimeMs)
-      } else if (followerFetchOffsetMetadata.messageOffset >= currentReplicaState.lastFetchLeaderLogEndOffset) {
+      } else if (followerFetchOffsetMetadata.messageOffset >= currentReplicaState.lastFetchLeaderLogEndOffset) { // 比上一次更近了
         math.max(currentReplicaState.lastCaughtUpTimeMs, currentReplicaState.lastFetchTimeMs)
-      } else {
+      } else { // 没变
         currentReplicaState.lastCaughtUpTimeMs
       }
 

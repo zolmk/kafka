@@ -50,6 +50,7 @@ import scala.jdk.CollectionConverters._
 import scala.math._
 
 /**
+ * 模板方法模式
  * Abstract class for fetching data from multiple partitions from the same broker.
  */
 abstract class AbstractFetcherThread(name: String,
@@ -114,11 +115,14 @@ abstract class AbstractFetcherThread(name: String,
   }
 
   private def maybeFetch(): Unit = {
+    // 构建请求
     val fetchRequestOpt = inLock(partitionMapLock) {
+      // 根据当前Fetcher需要拉取的分区状态构建请求
       val ResultWithPartitions(fetchRequestOpt, partitionsWithError) = leader.buildFetch(partitionStates.partitionStateMap.asScala)
 
       handlePartitionsWithErrors(partitionsWithError, "maybeFetch")
 
+      // 如果没有获取到分区更新，则等待一段时间 1s
       if (fetchRequestOpt.isEmpty) {
         trace(s"There are no active partitions. Back off for $fetchBackOffMs ms before sending a fetch request")
         partitionMapCond.await(fetchBackOffMs, TimeUnit.MILLISECONDS)
@@ -127,7 +131,9 @@ abstract class AbstractFetcherThread(name: String,
       fetchRequestOpt
     }
 
+    // 对请求进行处理
     fetchRequestOpt.foreach { case ReplicaFetch(sessionPartitions, fetchRequest) =>
+      // TODO 处理fetchRequest
       processFetchRequest(sessionPartitions, fetchRequest)
     }
   }
@@ -314,6 +320,7 @@ abstract class AbstractFetcherThread(name: String,
 
     try {
       trace(s"Sending fetch request $fetchRequest")
+      // TODO 发送请求，使用阻塞模式，先send，后poll
       responseData = leader.fetch(fetchRequest)
     } catch {
       case t: Throwable =>
@@ -326,6 +333,7 @@ abstract class AbstractFetcherThread(name: String,
     }
     fetcherStats.requestRate.mark()
 
+    // TODO 处理fetch到的数据
     if (responseData.nonEmpty) {
       // process fetched data
       inLock(partitionMapLock) {
@@ -339,11 +347,13 @@ abstract class AbstractFetcherThread(name: String,
               Errors.forCode(partitionData.errorCode) match {
                 case Errors.NONE =>
                   try {
+                    // TODO 没有错误发生，同步数据
                     if (leader.isTruncationOnFetchSupported && FetchResponse.isDivergingEpoch(partitionData)) {
                       // If a diverging epoch is present, we truncate the log of the replica
                       // but we don't process the partition data in order to not update the
                       // low/high watermarks until the truncation is actually done. Those will
                       // be updated by the next fetch.
+                      // 如果存在发散纪元，我们截断副本的日志，但我们不处理分区数据，以便在截断实际完成之前不更新低高水印。这些将由下一次获取更新。
                       divergingEndOffsets += topicPartition -> new EpochEndOffset()
                         .setPartition(topicPartition.partition)
                         .setErrorCode(Errors.NONE.code)
@@ -351,14 +361,21 @@ abstract class AbstractFetcherThread(name: String,
                         .setEndOffset(partitionData.divergingEpoch.endOffset)
                     } else {
                       // Once we hand off the partition data to the subclass, we can't mess with it any more in this thread
+                      // TODO 处理分区数据，添加到本地日志中，并更新 HW 的值
                       val logAppendInfoOpt = processPartitionData(
                         topicPartition,
                         currentFetchState.fetchOffset,
                         partitionData
                       )
 
+                      /**
+                       * TODO 更新分区的拉取状态信息，比如说下一次该从哪里开始拉取等等
+                       * 构造fetch请求依赖的是 paritionStates
+                       */
                       logAppendInfoOpt.foreach { logAppendInfo =>
+                        // 有效字节数
                         val validBytes = logAppendInfo.validBytes
+                        // 下一次拉取时的偏移量
                         val nextOffset = if (validBytes > 0) logAppendInfo.lastOffset + 1 else currentFetchState.fetchOffset
                         val lag = Math.max(0L, partitionData.highWatermark - nextOffset)
                         fetcherLagStats.getAndMaybePut(topicPartition).lag = lag
@@ -370,6 +387,7 @@ abstract class AbstractFetcherThread(name: String,
                           // Update partitionStates only if there is no exception during processPartitionData
                           val newFetchState = PartitionFetchState(currentFetchState.topicId, nextOffset, Some(lag),
                             currentFetchState.currentLeaderEpoch, state = Fetching, lastFetchedEpoch)
+                          // 更新下一次拉取的offset信息
                           partitionStates.updateAndMoveToEnd(topicPartition, newFetchState)
                           if (validBytes > 0) fetcherStats.byteRate.mark(validBytes)
                         }
@@ -449,6 +467,8 @@ abstract class AbstractFetcherThread(name: String,
 
     if (divergingEndOffsets.nonEmpty)
       truncateOnFetchResponse(divergingEndOffsets)
+
+    // 如果有分区出现了错误，在这里处理错误
     if (partitionsWithError.nonEmpty) {
       handlePartitionsWithErrors(partitionsWithError, "processFetchRequest")
     }

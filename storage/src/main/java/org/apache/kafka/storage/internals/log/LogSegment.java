@@ -251,6 +251,7 @@ public class LogSegment implements Closeable {
         if (records.sizeInBytes() > 0) {
             LOGGER.trace("Inserting {} bytes at end offset {} at position {} with largest timestamp {} at offset {}",
                 records.sizeInBytes(), largestOffset, log.sizeInBytes(), largestTimestampMs, shallowOffsetOfMaxTimestamp);
+            // 由于physicalPosition是个int值，所有segment文件最大不能超过 2GB = Integer.MAX_VALUE + 1
             int physicalPosition = log.sizeInBytes();
             if (physicalPosition == 0)
                 rollingBasedTimestamp = OptionalLong.of(largestTimestampMs);
@@ -258,6 +259,10 @@ public class LogSegment implements Closeable {
             ensureOffsetInRange(largestOffset);
 
             // append the messages
+            /**
+             * TODO 添加消息到日志中
+             * 直接写数据到FileChannel中
+             */
             long appendedBytes = log.append(records);
             LOGGER.trace("Appended {} to {} at end offset {}", appendedBytes, log.file(), largestOffset);
             // Update the in memory max timestamp and corresponding offset.
@@ -265,9 +270,17 @@ public class LogSegment implements Closeable {
                 maxTimestampAndOffsetSoFar = new TimestampOffset(largestTimestampMs, shallowOffsetOfMaxTimestamp);
             }
             // append an entry to the index (if needed)
+            // TODO 写索引
+            // 不是来一条数据就写一条索引，而是达到一定条件后，再写索引。
+            // 这里也叫稀疏索引
+            // 使用了mmap技术来写索引
+            // indexIntervalBytes 默认值为4096
+            // 也就是每写4096字节会写一条索引记录
             if (bytesSinceLastIndexEntry > indexIntervalBytes) {
+                // 写索引
                 offsetIndex().append(largestOffset, physicalPosition);
                 timeIndex().maybeAppend(maxTimestampSoFar(), shallowOffsetOfMaxTimestampSoFar());
+                // 重置
                 bytesSinceLastIndexEntry = 0;
             }
             bytesSinceLastIndexEntry += records.sizeInBytes();

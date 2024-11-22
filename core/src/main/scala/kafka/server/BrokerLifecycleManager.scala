@@ -218,6 +218,7 @@ class BrokerLifecycleManager(
   @volatile private var previousBrokerEpoch: OptionalLong = OptionalLong.empty()
 
   /**
+   * kafka事件队列，像Acceptor启动事件等等会被加入到在这个队列中
    * The event queue.
    */
   private[server] val eventQueue = new KafkaEventQueue(time,
@@ -243,6 +244,7 @@ class BrokerLifecycleManager(
             supportedFeatures: util.Map[String, VersionRange],
             previousBrokerEpoch: OptionalLong): Unit = {
     this.previousBrokerEpoch = previousBrokerEpoch
+    // 添加
     eventQueue.append(new StartupEvent(highestMetadataOffsetProvider,
       channelManager, clusterId, advertisedListeners, supportedFeatures))
   }
@@ -366,7 +368,9 @@ class BrokerLifecycleManager(
       _clusterId = clusterId
       _advertisedListeners = advertisedListeners.duplicate()
       _supportedFeatures = new util.HashMap[String, VersionRange](supportedFeatures)
+
       if (!isZkBroker) {
+        // 使用自定义Raft协议走这里。
         // Only KRaft brokers block on registration during startup
         eventQueue.scheduleDeferred("initialRegistrationTimeout",
           new DeadlineFunction(time.nanoseconds() + initialTimeoutNs),

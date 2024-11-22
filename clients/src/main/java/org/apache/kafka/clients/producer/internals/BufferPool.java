@@ -49,6 +49,10 @@ public class BufferPool {
     private final long totalMemory;
     private final int poolableSize;
     private final ReentrantLock lock;
+
+    /**
+     * 使用了双端队列，池化缓存从队头分配，当非池化缓存不足时，通过从队尾释放池化内存得以分配。
+     */
     private final Deque<ByteBuffer> free;
     private final Deque<Condition> waiters;
     /** Total available memory is the sum of nonPooledAvailableMemory and the number of byte buffers in free * poolableSize.  */
@@ -124,20 +128,29 @@ public class BufferPool {
         }
 
         try {
+            // poolableSize 等于 batchSize，默认为16KB
             // check if we have a free buffer of the right size pooled
             if (size == poolableSize && !this.free.isEmpty())
                 return this.free.pollFirst();
 
             // now check if the request is immediately satisfiable with the
             // memory on hand or if we need to block
+            // 缓存池可用空间
             int freeListSize = freeSize() * this.poolableSize;
+            // this.nonPooledAvailableMemory + freeListSize 表示总可分配的内存空间
             if (this.nonPooledAvailableMemory + freeListSize >= size) {
                 // we have enough unallocated or pooled memory to immediately
                 // satisfy the request, but need to allocate the buffer
+                // 我们有足够的未分配或池化内存来立即满足请求，但需要分配缓冲区
+
                 freeUp(size);
                 this.nonPooledAvailableMemory -= size;
             } else {
+                /*
+                 如果当前可用内存不足，则等待指导内存可用或达到最大等待时间
+                * */
                 // we are out of memory and will have to block
+                // 统计分配的内存
                 int accumulated = 0;
                 Condition moreMemory = this.lock.newCondition();
                 try {
@@ -145,6 +158,8 @@ public class BufferPool {
                     this.waiters.addLast(moreMemory);
                     // loop over and over until we have a buffer or have reserved
                     // enough memory to allocate one
+                    // 循环等待缓存可用，最多等待【maxTimeToBlockMs】
+                    // 如果分配的内存的大小不足，继续循环
                     while (accumulated < size) {
                         long startWaitNs = time.nanoseconds();
                         long timeNs;
@@ -172,12 +187,15 @@ public class BufferPool {
                         // check if we can satisfy this request from the free list,
                         // otherwise allocate memory
                         if (accumulated == 0 && size == this.poolableSize && !this.free.isEmpty()) {
+                            // 分配可池化内存
                             // just grab a buffer from the free list
                             buffer = this.free.pollFirst();
                             accumulated = size;
                         } else {
+                            // 分配非池化内存
                             // we'll need to allocate memory, but we may only get
                             // part of what we need on this iteration
+                            // 尝试释放池化内存
                             freeUp(size - accumulated);
                             int got = (int) Math.min(size - accumulated, this.nonPooledAvailableMemory);
                             this.nonPooledAvailableMemory -= got;
@@ -185,6 +203,7 @@ public class BufferPool {
                         }
                     }
                     // Don't reclaim memory on throwable since nothing was thrown
+                    // 重置，当上面的流程抛出异常时，在finally中需要恢复已分配的空间
                     accumulated = 0;
                 } finally {
                     // When this loop was not able to successfully terminate don't loose available memory
@@ -245,6 +264,7 @@ public class BufferPool {
     }
 
     /**
+     * 尝试通过释放池化缓冲区 (如果需要) 来确保我们至少有请求的内存字节数用于分配
      * Attempt to ensure we have at least the requested number of bytes of memory for allocation by deallocating pooled
      * buffers (if needed)
      */
@@ -264,12 +284,17 @@ public class BufferPool {
     public void deallocate(ByteBuffer buffer, int size) {
         lock.lock();
         try {
+            // 如果buffer是可池化缓存
             if (size == this.poolableSize && size == buffer.capacity()) {
+                // 清空缓存
                 buffer.clear();
+                // 将缓存块放入空闲池中
                 this.free.add(buffer);
             } else {
+                // 当前宦存块为非池化，则增大可用的非池化缓存
                 this.nonPooledAvailableMemory += size;
             }
+            // 唤醒等待队列中的队头线程
             Condition moreMem = this.waiters.peekFirst();
             if (moreMem != null)
                 moreMem.signal();
@@ -313,6 +338,7 @@ public class BufferPool {
     }
 
     /**
+     * 排队的线程数量
      * The number of threads blocked waiting on memory
      */
     public int queued() {

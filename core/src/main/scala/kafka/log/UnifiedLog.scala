@@ -155,6 +155,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
 
   def highestOffsetInRemoteStorage(): Long = _highestOffsetInRemoteStorage
 
+  // locally {} 将代码块标记为表达式，而不是类的一部分，也就是说在这个代码块中定义方法，这个方法不属于类
   locally {
     def updateLocalLogStartOffset(offset: Long): Unit = {
       _localLogStartOffset = offset
@@ -289,6 +290,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
    * @return the updated high watermark offset
    */
   def updateHighWatermark(highWatermarkMetadata: LogOffsetMetadata): Long = {
+    // 本地日志的 LEO
     val endOffsetMetadata = localLog.logEndOffsetMetadata
     val newHighWatermarkMetadata = if (highWatermarkMetadata.messageOffset < logStartOffset) {
       new LogOffsetMetadata(logStartOffset)
@@ -321,6 +323,8 @@ class UnifiedLog(@volatile var logStartOffset: Long,
 
       // Ensure that the high watermark increases monotonically. We also update the high watermark when the new
       // offset metadata is on a newer segment, which occurs whenever the log is rolled to a new segment.
+      // 新的hw的值大于旧的hw的值
+      // 确保高水印单调增加。当新的偏移元数据在较新的段上时，我们还更新高水印，每当日志被滚动到新段时，就会发生这种情况。
       if (oldHighWatermark.messageOffset < newHighWatermark.messageOffset ||
         (oldHighWatermark.messageOffset == newHighWatermark.messageOffset && oldHighWatermark.onOlderSegment(newHighWatermark))) {
         updateHighWatermarkMetadata(newHighWatermark)
@@ -722,6 +726,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
                      interBrokerProtocolVersion: MetadataVersion = MetadataVersion.latestProduction,
                      requestLocal: RequestLocal = RequestLocal.NoCaching,
                      verificationGuard: VerificationGuard = VerificationGuard.SENTINEL): LogAppendInfo = {
+    // origin 为 CLIENT
     val validateAndAssignOffsets = origin != AppendOrigin.RAFT_LEADER
     append(records, origin, interBrokerProtocolVersion, validateAndAssignOffsets, leaderEpoch, Some(requestLocal), verificationGuard, ignoreRecordSize = false)
   }
@@ -735,7 +740,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
    */
   def appendAsFollower(records: MemoryRecords): LogAppendInfo = {
     append(records,
-      origin = AppendOrigin.REPLICATION,
+      origin = AppendOrigin.REPLICATION, // 添加来源
       interBrokerProtocolVersion = MetadataVersion.latestProduction,
       validateAndAssignOffsets = false,
       leaderEpoch = -1,
@@ -775,6 +780,9 @@ class UnifiedLog(@volatile var logStartOffset: Long,
     // This will ensure that any log data can be recovered with the correct topic ID in the case of failure.
     maybeFlushMetadataFile()
 
+    /**
+     * TODO 1. 分析和验证数据
+     */
     val appendInfo = analyzeAndValidateRecords(records, origin, ignoreRecordSize, !validateAndAssignOffsets, leaderEpoch)
 
     // return if we have no valid messages or if this is a duplicate of the last appended entry
@@ -782,16 +790,31 @@ class UnifiedLog(@volatile var logStartOffset: Long,
     else {
 
       // trim any invalid bytes or partial messages before appending it to the on-disk log
+      // 修剪无效的字节 trim 修剪
       var validRecords = trimInvalidBytes(records, appendInfo)
 
+      /**
+       * 写入到log中
+       */
       // they are valid, insert them in the log
       lock synchronized {
         maybeHandleIOException(s"Error while appending records to $topicPartition in dir ${dir.getParent}") {
           localLog.checkIfMemoryMappedBufferClosed()
+
+          /**
+           * TODO 2. 再次校验和分配offset
+           */
           if (validateAndAssignOffsets) {
             // assign offsets to the message set
-            val offset = PrimitiveRef.ofLong(localLog.logEndOffset)
+            /**
+             * 设置要添加的消息的起始偏移量
+             */
+            val offset = PrimitiveRef.ofLong(localLog.logEndOffset) // LEO logEndOffset：最后一条消息的偏移量+1
             appendInfo.setFirstOffset(offset.value)
+
+            /**
+             * 进一步验证消息
+             */
             val validateAndOffsetAssignResult = try {
               val targetCompression = BrokerCompressionType.targetCompression(config.compression, appendInfo.sourceCompression())
               val validator = new LogValidator(validRecords,
@@ -822,6 +845,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
             validRecords = validateAndOffsetAssignResult.validatedRecords
             appendInfo.setMaxTimestamp(validateAndOffsetAssignResult.maxTimestampMs)
             appendInfo.setShallowOffsetOfMaxTimestamp(validateAndOffsetAssignResult.shallowOffsetOfMaxTimestamp)
+            // 设置最后终止的offset
             appendInfo.setLastOffset(offset.value - 1)
             appendInfo.setRecordValidationStats(validateAndOffsetAssignResult.recordValidationStats)
             if (config.messageTimestampType == TimestampType.LOG_APPEND_TIME)
@@ -829,6 +853,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
 
             // re-validate message sizes if there's a possibility that they have changed (due to re-compression or message
             // format conversion)
+            // 如果消息大小可能已更改 (由于重新压缩或消息格式转换)，则重新验证消息大小
             if (!ignoreRecordSize && validateAndOffsetAssignResult.messageSizeMaybeChanged) {
               validRecords.batches.forEach { batch =>
                 if (batch.sizeInBytes > config.maxMessageSize) {
@@ -882,6 +907,10 @@ class UnifiedLog(@volatile var logStartOffset: Long,
           }
 
           // maybe roll the log if this segment is full
+          // 如果该段已满，可能会滚动日志
+          /**
+           * TODO 3 获取一个可用的日志，如果日志已满，则创建新日志
+           */
           val segment = maybeRoll(validRecords.sizeInBytes, appendInfo)
 
           val logOffsetMetadata = new LogOffsetMetadata(
@@ -891,6 +920,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
 
           // now that we have valid records, offsets assigned, and timestamps updated, we need to
           // validate the idempotent/transactional state of the producers and collect some metadata
+          // 现在我们已经有了有效的记录、分配的偏移量和更新的时间戳，我们需要验证生产者的idempotent/transactional状态并收集一些元数据
           val (updatedProducers, completedTxns, maybeDuplicate) = analyzeAndValidateProducerState(
             logOffsetMetadata, validRecords, origin, verificationGuard)
 
@@ -907,14 +937,27 @@ class UnifiedLog(@volatile var logStartOffset: Long,
               // will be cleaned up after the log directory is recovered. Note that the end offset of the
               // ProducerStateManager will not be updated and the last stable offset will not advance
               // if the append to the transaction index fails.
+              /**
+               * 追加记录，并在追加后立即增加本地日志结束偏移量，因为对下面的事务索引的写入可能会失败，
+               * 并且我们希望确保未来追加的偏移量仍然单调增长。恢复日志目录后，将清除由此产生的事务索引不一致。
+               * 请注意，如果附加到事务索引失败，则不会更新ProducerStateManager的结束偏移量，并且最后一个稳定偏移量也不会前进。
+               * TODO: 4. 把数据写入segment文件中
+               */
               localLog.append(appendInfo.lastOffset, appendInfo.maxTimestamp, appendInfo.shallowOffsetOfMaxTimestamp, validRecords)
+
+              // TODO 5. 更新 HW 和 LEO
               updateHighWatermarkWithLogEndOffset()
 
               // update the producer state
+              // 更新生产者状态
               updatedProducers.values.foreach(producerAppendInfo => producerStateManager.update(producerAppendInfo))
 
               // update the transaction index with the true last stable offset. The last offset visible
               // to consumers using READ_COMMITTED will be limited by this value and the high watermark.
+              /**
+               * 用真正的最后一个稳定偏移量更新事务索引。使用 READ_COMMITTED 的消费者可见的最后偏移量将受此值和 HW 的限制。
+               *  完成事务
+               */
               completedTxns.foreach { completedTxn =>
                 val lastStableOffset = producerStateManager.lastStableOffset(completedTxn)
                 segment.updateTxnIndex(completedTxn, lastStableOffset)
@@ -923,17 +966,23 @@ class UnifiedLog(@volatile var logStartOffset: Long,
 
               // always update the last producer id map offset so that the snapshot reflects the current offset
               // even if there isn't any idempotent data being written
+              // 始终更新最后一个生产者id映射偏移量，以便快照反映当前偏移量，即使没有写入任何幂等数据v
               producerStateManager.updateMapEndOffset(appendInfo.lastOffset + 1)
 
               // update the first unstable offset (which is used to compute LSO)
+              // 更新第一个不稳定的偏移量 (用于计算LSO)
               maybeIncrementFirstUnstableOffset()
 
               trace(s"Appended message set with last offset: ${appendInfo.lastOffset}, " +
                 s"first offset: ${appendInfo.firstOffset}, " +
                 s"next offset: ${localLog.logEndOffset}, " +
                 s"and messages: $validRecords")
-
-              if (localLog.unflushedMessages >= config.flushInterval) flush(false)
+              // TODO 7. 根据条件判断是否将内存中的数据刷新到磁盘
+              // config.flushInterval 默认为long最大值
+              if (localLog.unflushedMessages >= config.flushInterval) {
+                // 一般情况下这个方法不会执行，除非对flushInterval参数进行了配置
+                flush(false)
+              }
           }
           appendInfo
         }
@@ -1091,7 +1140,21 @@ class UnifiedLog(@volatile var logStartOffset: Long,
       !verificationGuard(batch.producerId).verify(requestVerificationGuard)
   }
 
+
   /**
+   * 验证以下内容:
+   * 每个消息匹配其CRC
+   * 每个消息大小都有效 (如果ignoreRecordSize为false)
+   * 的序列号的传入记录批次是一致的现有状态和相互
+   * 偏移量单调递增 (如果requireOffsetsMonotonic为真)
+   * 还计算以下数量:
+   * 第一个偏移量在消息集中
+   * 最后一个偏移量在消息集中
+   * 数量的消息
+   * 有效字节数
+   * 偏移量是否单调递增
+   * 是否有任何压缩编解码器被使用 (如果许多被使用，那么最后一个被给出)
+   *
    * Validate the following:
    * <ol>
    * <li> each message matches its CRC
@@ -1568,9 +1631,9 @@ class UnifiedLog(@volatile var logStartOffset: Long,
    */
   def deleteOldSegments(): Int = {
     if (config.delete) {
-      deleteLogStartOffsetBreachedSegments() +
-        deleteRetentionSizeBreachedSegments() +
-        deleteRetentionMsBreachedSegments()
+      deleteLogStartOffsetBreachedSegments() + // 根据offset来删除segment
+        deleteRetentionSizeBreachedSegments() + // 根据文件大小来删除 当文件超过配置的大小时，删除文件，默认情况下，为-1，也就是不删除
+        deleteRetentionMsBreachedSegments() // 删除超时的 segment 默认情况下，超过7天的文件将被删除
     } else {
       deleteLogStartOffsetBreachedSegments()
     }
@@ -1655,6 +1718,7 @@ class UnifiedLog(@volatile var logStartOffset: Long,
    * @return  The currently active segment after (perhaps) rolling to a new segment
    */
   private def maybeRoll(messagesSize: Int, appendInfo: LogAppendInfo): LogSegment = lock synchronized {
+    // 获取活跃的日志，活跃日志的意思是：该日志可以写数据，还没有满
     val segment = localLog.segments.activeSegment
     val now = time.milliseconds
 
@@ -1681,9 +1745,10 @@ class UnifiedLog(@volatile var logStartOffset: Long,
       */
       val rollOffset = if (appendInfo.firstOffset == UnifiedLog.UnknownOffset)
         maxOffsetInMessages - Integer.MAX_VALUE
-      else
+      else {
         appendInfo.firstOffset
-
+      }
+      // 滚动日志
       roll(Some(rollOffset))
     } else {
       segment
@@ -2018,6 +2083,9 @@ object UnifiedLog extends Logging {
     // create the log directory if it doesn't exist
     Files.createDirectories(dir.toPath)
     val topicPartition = UnifiedLog.parseTopicPartitionName(dir)
+    /**
+     * 新建segments对象
+     */
     val segments = new LogSegments(topicPartition)
     // The created leaderEpochCache will be truncated by LogLoader if necessary
     // so it is guaranteed that the epoch entries will be correct even when on-disk

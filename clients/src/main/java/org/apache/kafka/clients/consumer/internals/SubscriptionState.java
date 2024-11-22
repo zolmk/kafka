@@ -193,6 +193,11 @@ public class SubscriptionState {
         return changeSubscription(topics);
     }
 
+    /**
+     * 是否有更新
+     * @param topicsToSubscribe
+     * @return
+     */
     private boolean changeSubscription(Set<String> topicsToSubscribe) {
         if (subscription.equals(topicsToSubscribe))
             return false;

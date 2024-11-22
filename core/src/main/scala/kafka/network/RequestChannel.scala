@@ -353,7 +353,15 @@ class RequestChannel(val queueSize: Int,
 
   private val metricsGroup = new KafkaMetricsGroup(this.getClass)
 
+  /**
+   * 请求队列，默认 大小 500
+   * 接收来自 processor 发来的请求
+   */
   private val requestQueue = new ArrayBlockingQueue[BaseRequest](queueSize)
+
+  /**
+   * 所有的processor都在这里
+   */
   private val processors = new ConcurrentHashMap[Int, Processor]()
   private val requestQueueSizeMetricName = metricNamePrefix.concat(RequestQueueSizeMetric)
   private val responseQueueSizeMetricName = metricNamePrefix.concat(ResponseQueueSizeMetric)
@@ -455,6 +463,9 @@ class RequestChannel(val queueSize: Int,
       case _: StartThrottlingResponse | _: EndThrottlingResponse => ()
     }
 
+    /**
+     * TODO 将响应放入到 processor对应的队列中
+     */
     val processor = processors.get(response.processor)
     // The processor may be null if it was shutdown. In this case, the connections
     // are closed, so the response is dropped.

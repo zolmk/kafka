@@ -153,6 +153,7 @@ class ZkAdminManager(val config: KafkaConfig,
   }
 
   /**
+   * 创建主题并等待主题完全创建。当超时，错误或创建主题时，将触发回调函数。
     * Create topics and wait until the topics have been completely created.
     * The callback function will be triggered either when timeout, error or the topics are created.
     */
@@ -164,6 +165,7 @@ class ZkAdminManager(val config: KafkaConfig,
                    responseCallback: Map[String, ApiError] => Unit): Unit = {
 
     // 1. map over topics creating assignment and calling zookeeper
+    // TODO 1. 创建任务并调用zookeeper映射主题，这一步主要将topic的元数据信息写入zk中
     val brokers = metadataCache.getAliveBrokers()
     val metadata = toCreate.values.map(topic =>
       try {
@@ -174,6 +176,7 @@ class ZkAdminManager(val config: KafkaConfig,
         if (nullConfigs.nonEmpty)
           throw new InvalidConfigurationException(s"Null value not supported for topic configs: ${nullConfigs.mkString(",")}")
 
+        // 分区数 和 副本指派 不能同时设置
         if ((topic.numPartitions != NO_NUM_PARTITIONS || topic.replicationFactor != NO_REPLICATION_FACTOR)
             && !topic.assignments().isEmpty) {
           throw new InvalidRequestException("Both numPartitions or replicationFactor and replicasAssignments were set. " +
@@ -185,10 +188,13 @@ class ZkAdminManager(val config: KafkaConfig,
         val resolvedReplicationFactor = if (topic.replicationFactor == NO_REPLICATION_FACTOR)
           defaultReplicationFactor else topic.replicationFactor
 
+        // 获取指派方案
         val assignments = if (topic.assignments.isEmpty) {
+          // 调用工具类生成指派方案
           CoreUtils.replicaToBrokerAssignmentAsScala(AdminUtils.assignReplicasToBrokers(
             brokers.asJavaCollection, resolvedNumPartitions, resolvedReplicationFactor))
         } else {
+          // 从请求中获取指派方案
           val assignments = new mutable.HashMap[Int, Seq[Int]]
           // Note: we don't check that replicaAssignment contains unknown brokers - unlike in add-partitions case,
           // this follows the existing logic in TopicCommand
@@ -201,7 +207,10 @@ class ZkAdminManager(val config: KafkaConfig,
 
         val configs = new Properties()
         topic.configs.forEach(entry => configs.setProperty(entry.name, entry.value))
+
+        // 验证topic的配置
         adminZkClient.validateTopicCreate(topic.name, assignments, configs)
+        // 验证topic创建策略
         validateTopicCreatePolicy(topic, resolvedNumPartitions, resolvedReplicationFactor, assignments)
 
         // For responses with DescribeConfigs permission, populate metadata and configs. It is
@@ -212,9 +221,13 @@ class ZkAdminManager(val config: KafkaConfig,
         if (validateOnly) {
           CreatePartitionsMetadata(topic.name, assignments.keySet)
         } else {
+          // TODO 调用adminZkClient创建topic 也就是将topic的元数据信息（topic的分区指派等信息）写入到zk上
           controllerMutationQuota.record(assignments.size)
           adminZkClient.createTopicWithAssignment(topic.name, configs, assignments, validate = false, config.usesTopicId)
+
+          // 处理topic Ids
           populateIds(includeConfigsAndMetadata, topic.name)
+
           CreatePartitionsMetadata(topic.name, assignments.keySet)
         }
       } catch {
@@ -237,6 +250,7 @@ class ZkAdminManager(val config: KafkaConfig,
       }).toBuffer
 
     // 2. if timeout <= 0, validateOnly or no topics can proceed return immediately
+    // 2. 如果超时时间小于等于0 或者 仅仅做验证 或 创建过程中都发生了已知错误 则立即返回
     if (timeout <= 0 || validateOnly || !metadata.exists(_.error.is(Errors.NONE))) {
       val results = metadata.map { createTopicMetadata =>
         // ignore topics that already have errors
@@ -249,6 +263,8 @@ class ZkAdminManager(val config: KafkaConfig,
       responseCallback(results)
     } else {
       // 3. else pass the assignments and errors to the delayed operation and set the keys
+      // 3. 否则将赋值和错误传递给延迟的操作并设置键
+      // TODO 延迟任务，timeout时间后去执行回调函数（也可能会被提前）
       val delayedCreate = new DelayedCreatePartitions(timeout, metadata, this,
         responseCallback)
       val delayedCreateKeys = toCreate.values.map(topic => TopicKey(topic.name)).toBuffer

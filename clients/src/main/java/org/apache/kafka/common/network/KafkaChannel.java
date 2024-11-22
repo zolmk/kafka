@@ -114,6 +114,12 @@ public class KafkaChannel implements AutoCloseable {
     }
 
     private final String id;
+    /**
+     * TODO 传输层组件
+     * 内部封装了NioChannel和SelectionKey
+     * 有两种类型，一种是明文传输
+     * 一种是SSL传输
+     */
     private final TransportLayer transportLayer;
     private final Supplier<Authenticator> authenticatorCreator;
     private Authenticator authenticator;
@@ -251,7 +257,9 @@ public class KafkaChannel implements AutoCloseable {
      */
     void mute() {
         if (muteState == ChannelMuteState.NOT_MUTED) {
+            // 移除当前连接的OP_READ事件
             if (!disconnected) transportLayer.removeInterestOps(SelectionKey.OP_READ);
+            // 设置当前禁音状态为 MUTED
             muteState = ChannelMuteState.MUTED;
         }
     }
@@ -387,15 +395,22 @@ public class KafkaChannel implements AutoCloseable {
     }
 
     public void setSend(NetworkSend send) {
+        // 只有当上一个Send发送出去后才可以再次设置Send对象
         if (this.send != null)
             throw new IllegalStateException("Attempt to begin a send operation with prior send operation still in progress, connection id is " + id);
         this.send = send;
+
         this.transportLayer.addInterestOps(SelectionKey.OP_WRITE);
     }
 
+    /**
+     * 检查是否完成发送
+     * @return
+     */
     public NetworkSend maybeCompleteSend() {
         if (send != null && send.completed()) {
             midWrite = false;
+            // 移除OP_WRITE事件
             transportLayer.removeInterestOps(SelectionKey.OP_WRITE);
             NetworkSend result = send;
             send = null;
@@ -423,7 +438,9 @@ public class KafkaChannel implements AutoCloseable {
     }
 
     public NetworkReceive maybeCompleteReceive() {
+        // 读取到了所有数据
         if (receive != null && receive.complete()) {
+            // 重置payload 的 position指针
             receive.payload().rewind();
             NetworkReceive result = receive;
             receive = null;

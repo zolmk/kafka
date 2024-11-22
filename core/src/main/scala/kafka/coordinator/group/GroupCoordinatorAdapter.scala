@@ -90,6 +90,7 @@ private[group] class GroupCoordinatorAdapter(
   ): CompletableFuture[JoinGroupResponseData] = {
     val future = new CompletableFuture[JoinGroupResponseData]()
 
+    // TODO 添加组成功后的回调函数
     def callback(joinResult: JoinGroupResult): Unit = {
       future.complete(new JoinGroupResponseData()
         .setErrorCode(joinResult.error.code)
@@ -114,7 +115,7 @@ private[group] class GroupCoordinatorAdapter(
     }.toList
 
     val supportSkippingAssignment = context.apiVersion >= 9
-
+    // TODO 处理加入组的请求
     coordinator.handleJoinGroup(
       request.groupId,
       request.memberId,
@@ -176,6 +177,7 @@ private[group] class GroupCoordinatorAdapter(
     request: HeartbeatRequestData
   ): CompletableFuture[HeartbeatResponseData] = {
     val future = new CompletableFuture[HeartbeatResponseData]()
+
 
     coordinator.handleHeartbeat(
       request.groupId,

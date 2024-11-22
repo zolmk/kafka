@@ -111,14 +111,17 @@ class AdminZkClient(zkClient: KafkaZkClient,
       s"assignment $partitionReplicaAssignment")
 
     // write out the config if there is any, this isn't transactional with the partition assignments
+    // 写入topic的配置信息
     zkClient.setOrCreateEntityConfigs(ConfigType.TOPIC, topic, config)
 
     // create the partition assignment
+    // 写入分区的指派信息
     writeTopicPartitionAssignment(topic, partitionReplicaAssignment.map { case (k, v) => k -> ReplicaAssignment(v) },
       isUpdate = false, usesTopicId)
   }
 
   /**
+   * 验证topic的配置信息
    * Validate topic creation parameters. Note that this method is indirectly used by the
    * TopicCommand via the `createTopicWithAssignment` method.
    *

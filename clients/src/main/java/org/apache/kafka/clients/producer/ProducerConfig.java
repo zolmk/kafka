@@ -117,6 +117,7 @@ public class ProducerConfig extends AbstractConfig {
 
     /** <code>acks</code> */
     public static final String ACKS_CONFIG = "acks";
+
     private static final String ACKS_DOC = "The number of acknowledgments the producer requires the leader to have received before considering a request complete. This controls the "
                                            + " durability of records that are sent. The following settings are allowed: "
                                            + " <ul>"

@@ -38,7 +38,14 @@ public class LogSegments {
 
     private final TopicPartition topicPartition;
     /* the segments of the log with key being LogSegment base offset and value being a LogSegment */
-    private final ConcurrentNavigableMap<Long, LogSegment> segments = new ConcurrentSkipListMap<>();
+    private final ConcurrentNavigableMap<Long, LogSegment> segments =
+      // juc包
+      // 基于跳表实现的 map
+      // 为什么要用SkipListMap而不是HashMap？
+      // 可能的原因是：
+      // 1. LogSegment数量不会太多
+      // 2. 实现了NavigableMap接口，可以根据key的顺序获取对应的Entry，如lastEntry、firstEntry方法
+      new ConcurrentSkipListMap<>();
 
     /**
      * Create new instance.

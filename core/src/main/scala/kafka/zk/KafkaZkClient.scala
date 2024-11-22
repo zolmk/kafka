@@ -125,6 +125,7 @@ class KafkaZkClient private[zk] (
 
     // Read /controller_epoch to get the current controller epoch and zkVersion,
     // create /controller_epoch with initial value if not exists
+    // 从 /controller_epoch上获取信息
     val (curEpoch, curEpochZkVersion) = getControllerEpoch
       .map(e => (e._1, e._2.getVersion))
       .getOrElse(maybeCreateControllerEpochZNode())
@@ -155,8 +156,11 @@ class KafkaZkClient private[zk] (
 
     def tryCreateControllerZNodeAndIncrementEpoch(): (Int, Int) = {
       val response = retryRequestUntilConnected(
+        // 构建一个请求序列
         MultiRequest(Seq(
+          // 创建临时节点
           CreateOp(ControllerZNode.path, ControllerZNode.encode(controllerId, timestamp), defaultAcls(ControllerZNode.path), CreateMode.EPHEMERAL),
+          // 设置 controler_epoch 的节点数据
           SetDataOp(ControllerEpochZNode.path, ControllerEpochZNode.encode(newControllerEpoch), expectedControllerEpochZkVersion)))
       )
       response.resultCode match {
@@ -529,14 +533,18 @@ class KafkaZkClient private[zk] (
       val path = ConfigEntityZNode.path(rootEntityType, sanitizedEntityName)
       try createRecursive(path, configData)
       catch {
+            // 如果节点已存在，则只设置数据
         case _: NodeExistsException => set(configData).maybeThrow()
       }
     }
 
+    // 编码配置信息，将配置转换为二进制byte数组
     val configData = ConfigEntityZNode.encode(config)
 
+    // 将数据set到节点
     val setDataResponse = set(configData)
     setDataResponse.resultCode match {
+      // set数据时，报节点不存在，则创建节点并设置数据
       case Code.NONODE => createOrSet(configData)
       case _ => setDataResponse.maybeThrow()
     }
@@ -1897,6 +1905,12 @@ class KafkaZkClient private[zk] (
     }
   }
 
+  /**
+   * 递归的创建节点，如果父节点不存在，则创建父节点
+   * @param path
+   * @param data
+   * @param throwIfPathExists
+   */
   private[kafka] def createRecursive(path: String, data: Array[Byte] = null, throwIfPathExists: Boolean = true): Unit = {
 
     def parentPath(path: String): String = {

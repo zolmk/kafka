@@ -24,6 +24,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * 1）高并发环境下是线程安全的
+ * 2）采用读写分离的思想设计的数据结构，参考了操作系统分页内存管理中的copy on write思想，但这么做的缺点是：每次写入都会开辟新的内存空间
+ * 3）适合写少读多的场景
+ *
  * A simple read-optimized map implementation that synchronizes only writes and does a full copy on each modification.
  * <p>
  * Through the {@link org.apache.kafka.jmh.util.ConcurrentMapBenchmark}, we observed that in scenarios where
@@ -32,6 +36,9 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class CopyOnWriteMap<K, V> implements ConcurrentMap<K, V> {
 
+    /**
+     * 修饰符为volatile，如果该值发生变化，将立即同步到其他线程。
+     */
     private volatile Map<K, V> map;
 
     public CopyOnWriteMap() {
@@ -87,6 +94,15 @@ public class CopyOnWriteMap<K, V> implements ConcurrentMap<K, V> {
         this.map = Collections.emptyMap();
     }
 
+    /**
+     * 1. 使用synchronized关键字修饰，保证了多线程环境下的顺序访问
+     * 2. 采用读写分离设计，写在新的map上，读副本不可修改
+     * 3. 对map的赋值操作具有原子性，并且this.map使用volatile修饰符修饰，具备线程安全性
+     *
+     * @param k key with which the specified value is to be associated
+     * @param v value to be associated with the specified key
+     * @return
+     */
     @Override
     public synchronized V put(K k, V v) {
         Map<K, V> copy = new HashMap<>(this.map);

@@ -25,10 +25,17 @@ public class Node {
 
     private static final Node NO_NODE = new Node(-1, "", -1);
 
+    /* kafka broker 节点 ID，配置中有 */
     private final int id;
     private final String idString;
+
+    /* 主机名 */
     private final String host;
+
+    /* 端口号： 9092 */
     private final int port;
+
+    /* 机架信息 */
     private final String rack;
 
     // Cache hashCode as it is called in performance sensitive parts of the code (e.g. RecordAccumulator.ready)

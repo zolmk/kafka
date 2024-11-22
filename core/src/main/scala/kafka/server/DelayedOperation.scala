@@ -181,6 +181,9 @@ final class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: Stri
   private[this] val estimatedTotalOperations = new AtomicInteger(0)
 
   /* background thread expiring operations that have timed out */
+  /**
+   * 执行延迟操作的线程
+   */
   private val expirationReaper = new ExpiredOperationReaper()
 
   private val metricsTags = Map("delayedOperation" -> purgatoryName).asJava
@@ -211,6 +214,10 @@ final class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: Stri
     // If the operation is not completed, we just add the operation to all keys. Then we call tryComplete() again. At
     // this time, if the operation is still not completed, we are guaranteed that it won't miss any future triggering
     // event since the operation is already on the watcher list for all keys.
+    // tryComplete() 的成本通常与键的数量成比例。如果有许多键，为每个键调用tryComplete() 将是昂贵的。
+    // 相反，我们通过safeTryCompleteOrElse() 以下面的方式进行检查。
+    // 如果操作未完成，我们只需将操作添加到所有键即可。
+    // 然后我们再次调用tryComplete()。此时，如果操作仍未完成，我们保证它不会错过任何未来的触发事件，因为操作已经在所有键的观察者列表上。
     //
     // ==============[story about lock]==============
     // Through safeTryCompleteOrElse(), we hold the operation's lock while adding the operation to watch list and doing
@@ -223,6 +230,17 @@ final class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: Stri
     // 5) thread_c calls checkAndComplete() and holds lock of op
     // 6) thread_c is waiting readlock of stateLock to complete op (blocked by thread_b)
     // 7) thread_a is waiting lock of op to call the final tryComplete() (blocked by thread_c)
+    // ============== [关于锁的故事] ==================
+    // 通过safetycompleteorelse ()，我们持有操作的锁，同时将操作添加到监视列表并执行tryComplete() 检查。
+    // 这是为了避免调用tryCompleteElseWatch() 和checkAndComplete() 之间的潜在死锁。
+    // 例如，如果仅在最终的tryComplete() 中持有锁，则可能发生以下死锁
+    // 1) thread_a持有来自TransactionStateManager的状态锁的readlock
+    // 2) thread_a正在执行trycompleteeelsewatch ()
+    // 3) thread_a将op添加到监视列表
+    // 4) thread_b需要来自TransactionStateManager的状态锁的写入锁定 (由thread_a (被阻止)
+    // 5) thread_c调用checkAndComplete() 并持有op的锁
+    // 6) thread_c正在等待stateLock的readlock以完成op (被thread_b阻止)
+    // 7) thread_a正在等待op的锁以调用最终的tryComplete() (被thread_c阻止)
     //
     // Note that even with the current approach, deadlocks could still be introduced. For example,
     // 1) thread_a calls tryCompleteElseWatch() and gets lock of op
@@ -234,6 +252,7 @@ final class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: Stri
     // To avoid the above scenario, we recommend DelayedOperationPurgatory.checkAndComplete() be called without holding
     // any exclusive lock. Since DelayedOperationPurgatory.checkAndComplete() completes delayed operations asynchronously,
     // holding a exclusive lock to make the call is often unnecessary.
+
     if (operation.safeTryCompleteOrElse {
       watchKeys.foreach(key => watchForOperation(key, operation))
       if (watchKeys.nonEmpty) estimatedTotalOperations.incrementAndGet()

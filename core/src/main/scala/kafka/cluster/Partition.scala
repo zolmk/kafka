@@ -92,9 +92,13 @@ class DelayedOperations(topicPartition: TopicPartition,
                         deleteRecords: DelayedOperationPurgatory[DelayedDeleteRecords]) {
 
   def checkAndCompleteAll(): Unit = {
+    // 当前分区操作请求的key
     val requestKey = TopicPartitionOperationKey(topicPartition)
+    // TODO 检查和完成拉取的延迟请求
     fetch.checkAndComplete(requestKey)
+    // TODO 检查和完成生产的延迟请求，当acks=-1时需要
     produce.checkAndComplete(requestKey)
+    // TODO 检查和完成删除记录的延迟请求
     deleteRecords.checkAndComplete(requestKey)
   }
 
@@ -138,7 +142,7 @@ object Partition {
 
     new Partition(topicPartition,
       _topicId = topicId,
-      replicaLagTimeMaxMs = replicaManager.config.replicaLagTimeMaxMs,
+      replicaLagTimeMaxMs = replicaManager.config.replicaLagTimeMaxMs, // 默认30s
       interBrokerProtocolVersion = replicaManager.metadataCache.metadataVersion(),
       localBrokerId = replicaManager.config.brokerId,
       localBrokerEpochSupplier = replicaManager.brokerEpochSupplier,
@@ -186,6 +190,9 @@ sealed trait PartitionState {
   def isr: Set[Int]
 
   /**
+   * 该集合可以包括在扩展之后的未提交的ISR成员。该 “有效” ISR用于推进高水印以及确定ack = 所有产生请求需要哪些副本。
+   * 仅适用于IBP 2.7-IV2，对于旧版本，这将返回已提交的ISR
+   *
    * This set may include un-committed ISR members following an expansion. This "effective" ISR is used for advancing
    * the high watermark as well as determining which replicas are required for acks=all produce requests.
    *
@@ -309,6 +316,11 @@ class Partition(val topicPartition: TopicPartition,
   def partitionId: Int = topicPartition.partition
 
   private val stateChangeLogger = new StateChangeLogger(localBrokerId, inControllerContext = false, None)
+
+  /**
+   * 当前分区的所有副本
+   * 一个分区有多个副本，这里的Replica对象主要保存副本的状态信息，
+   */
   private val remoteReplicasMap = new Pool[Int, Replica]
   // The read lock is only required when multiple reads are executed and needs to be in a consistent manner
   private val leaderIsrUpdateLock = new ReentrantReadWriteLock
@@ -330,6 +342,10 @@ class Partition(val topicPartition: TopicPartition,
   // is getting changed (as a result of ReplicaAlterLogDirs command), we may have two logs until copy
   // completes and a switch to new location is performed.
   // log and futureLog variables defined below are used to capture this
+  /**
+   * 属于此分区的日志。大多数情况下，它只会是一个日志，但是如果日志目录正在更改 (由于ReplicaAlterLogDirs命令)，
+   * 我们可能会有两个日志，直到复制完成并执行切换到新位置。下面定义的log和futureLog变量用于捕获此
+   */
   @volatile var log: Option[UnifiedLog] = None
   // If ReplicaAlterLogDir command is in progress, this is future location of the log
   @volatile var futureLog: Option[UnifiedLog] = None
@@ -746,6 +762,7 @@ class Partition(val topicPartition: TopicPartition,
 
       // Updating the assignment and ISR state is safe if the partition epoch is
       // larger or equal to the current partition epoch.
+      // 如果当前broker节点是分区的leader，则需要更新任务和ISR
       updateAssignmentAndIsr(
         replicas = replicas,
         isLeader = true,
@@ -904,13 +921,14 @@ class Partition(val topicPartition: TopicPartition,
   }
 
   /**
+   * 基于最近的一次fetch请求，在leader上更新follower的状态
    * Update the follower's state in the leader based on the last fetch request. See
    * [[Replica.updateFetchStateOrThrow()]] for details.
    *
    * This method is visible for performance testing (see `UpdateFollowerFetchStateBenchmark`)
    */
   def updateFollowerFetchState(
-    replica: Replica,
+    replica: Replica, // 当前发起 fetch 请求的 follower replica
     followerFetchOffsetMetadata: LogOffsetMetadata,
     followerStartOffset: Long,
     followerFetchTimeMs: Long,
@@ -919,10 +937,12 @@ class Partition(val topicPartition: TopicPartition,
   ): Unit = {
     // No need to calculate low watermark if there is no delayed DeleteRecordsRequest
     val oldLeaderLW = if (delayedOperations.numDelayedDelete > 0) lowWatermarkIfLeader else -1L
+    // 更早之前follower的 LEO
     val prevFollowerEndOffset = replica.stateSnapshot.logEndOffset
 
     // Apply read lock here to avoid the race between ISR updates and the fetch requests from rebooted follower. It
     // could break the broker epoch checks in the ISR expansion.
+    // TODO 获取 leader 的 ISR 读锁，在Leader分区中更新follower的replica状态信息
     inReadLock(leaderIsrUpdateLock) {
       replica.updateFetchStateOrThrow(
         followerFetchOffsetMetadata,
@@ -939,6 +959,7 @@ class Partition(val topicPartition: TopicPartition,
     val leaderLWIncremented = newLeaderLW > oldLeaderLW
 
     // Check if this in-sync replica needs to be added to the ISR.
+    // TODO 或许需要扩展ISR，并且会尝试更新HW的值，如果更新成功，则会尝试完成延迟请求
     maybeExpandIsr(replica)
 
     // check if the HW of the partition can now be incremented
@@ -954,6 +975,7 @@ class Partition(val topicPartition: TopicPartition,
     }
 
     // some delayed operations may be unblocked after HW or LW changed
+    // TODO 也就是说在每一次 follower 拉取数据时，都会去尝试完成延迟的请求，这些延迟的请求在等待所有的follower同步完成
     if (leaderLWIncremented || leaderHWIncremented)
       tryCompleteDelayedRequests()
 
@@ -991,6 +1013,7 @@ class Partition(val topicPartition: TopicPartition,
 
       // Due to code paths accessing remoteReplicasMap without a lock,
       // first add the new replicas and then remove the old ones.
+      // 更新 replica 信息
       followers.foreach(id => remoteReplicasMap.getAndMaybePut(id, new Replica(id, topicPartition, metadataCache)))
       remoteReplicasMap.removeAll(removedReplicas)
     } else {
@@ -1021,6 +1044,7 @@ class Partition(val topicPartition: TopicPartition,
    */
   private def maybeExpandIsr(followerReplica: Replica): Unit = {
     val needsIsrUpdate = !partitionState.isInflight && canAddReplicaToIsr(followerReplica.brokerId) && inReadLock(leaderIsrUpdateLock) {
+      // 返回是否需要扩展 ISR
       needsExpandIsr(followerReplica)
     }
     if (needsIsrUpdate) {
@@ -1035,6 +1059,7 @@ class Partition(val topicPartition: TopicPartition,
       }
       // Send the AlterPartition request outside of the LeaderAndIsr lock since the completion logic
       // may increment the high watermark (and consequently complete delayed operations).
+      // 更新ISR分区 在 zk 和 cache中，如果用了内置raft协议，则不需要更新zk
       alterIsrUpdateOpt.foreach(submitAlterPartition)
     }
   }
@@ -1053,6 +1078,8 @@ class Partition(val topicPartition: TopicPartition,
   private def isFollowerInSync(followerReplica: Replica): Boolean = {
     leaderLogIfLocal.exists { leaderLog =>
       val followerEndOffset = followerReplica.stateSnapshot.logEndOffset
+      // 当前follower的offset要大于等于leader的HW，
+      // 说明follower的数据已经和leader保持一致了
       followerEndOffset >= leaderLog.highWatermark && leaderEpochStartOffsetOpt.exists(followerEndOffset >= _)
     }
   }
@@ -1104,6 +1131,7 @@ class Partition(val topicPartition: TopicPartition,
     leaderLogIfLocal match {
       case Some(leaderLog) =>
         // keep the current immutable replica list reference
+        // 返回所有已提交的isr
         val curMaximalIsr = partitionState.maximalIsr
 
         if (isTraceEnabled) {
@@ -1112,6 +1140,7 @@ class Partition(val topicPartition: TopicPartition,
           }
 
           val curInSyncReplicaObjects = (curMaximalIsr - localBrokerId).flatMap(getReplica)
+
           val replicaInfo = curInSyncReplicaObjects.map(replica => (replica.brokerId, replica.stateSnapshot.logEndOffset))
           val localLogInfo = (localBrokerId, localLogOrException.logEndOffset)
           val (ackedReplicas, awaitingReplicas) = (replicaInfo + localLogInfo).partition { _._2 >= requiredOffset}
@@ -1121,15 +1150,17 @@ class Partition(val topicPartition: TopicPartition,
             s"awaiting ${awaitingReplicas.map(logEndOffsetString)}")
         }
 
+        // 最少的min.in.sync.replicas数量
         val minIsr = effectiveMinIsr(leaderLog)
         if (leaderLog.highWatermark >= requiredOffset) {
           /*
            * The topic may be configured not to accept messages if there are not enough replicas in ISR
            * in this scenario the request was already appended locally and then added to the purgatory before the ISR was shrunk
            */
-          if (minIsr <= curMaximalIsr.size)
+          if (minIsr <= curMaximalIsr.size) {
+            // 没有问题，可以更新HW
             (true, Errors.NONE)
-          else
+          } else
             (true, Errors.NOT_ENOUGH_REPLICAS_AFTER_APPEND)
         } else
           (false, Errors.NONE)
@@ -1139,6 +1170,22 @@ class Partition(val topicPartition: TopicPartition,
   }
 
   /**
+   * 检查并可能增加分区的高水印; 当
+   * 1.分区ISR更改
+   * 2.所有副本的LEO都改变了
+   *
+   * HW由同步的所有副本中的最小日志结束偏移确定; 或者被认为是被赶上的并且被允许加入ISR。
+   * 这样，如果副本被认为是追上的，但其日志结束偏移量小于HW，我们将等待此副本追上HW，然后再推进HW。
+   * 这有助于ISR仅包括领导者副本并且追随者试图追赶的情况。如果我们在推进HW时不等待follower，
+   * 则follower的log end offset可能会一直落后于HW (由leader的log end offset确定)，因此永远不会添加到ISR中。
+   * 仅当ISR大小等于或大于最小ISR(min.insync.replicas) 时，HW才能前进。
+   *
+   * 随着AlterPartition的添加，在推进HW时，我们还将新添加的副本视为ISR的一部分。
+   * 这些副本尚未由控制器提交给ISR，因此我们可以恢复到以前提交的ISR。但是，向ISR添加额外的副本使其更具限制性，因此更加安全。我们称这个集合为 “最大” ISR。有关更多详细信息，请参见KIP-497
+   * 注意这里不需要获取leaderIsrUpdate锁，因为此私有API的所有调用者都获取该锁
+   * 退货:
+   * 如果HW递增，则为true，否则为false。
+   *
    * Check and maybe increment the high watermark of the partition;
    * this function can be triggered when
    *
@@ -1165,6 +1212,7 @@ class Partition(val topicPartition: TopicPartition,
    */
   private def maybeIncrementLeaderHW(leaderLog: UnifiedLog, currentTimeMs: Long = time.milliseconds): Boolean = {
     if (isUnderMinIsr) {
+      // 由于isr的副本数 小于 配置的min.insync.replica数，所有之间返回false
       trace(s"Not increasing HWM because partition is under min ISR(ISR=${partitionState.isr}")
       return false
     }
@@ -1209,6 +1257,11 @@ class Partition(val topicPartition: TopicPartition,
   }
 
   /**
+   * 所有实时副本的最小 LSO（LogStartOffset）
+   *
+   * 低水印偏移值，仅当本地副本是分区领导者时计算它仅由领导者代理用于决定何时满足DeleteRecordsRequest。
+   * 它的值是所有实时副本的最小logStartOffset。当领导者代理收到FetchRequest或DeleteRecordsRequest时，低水印将增加。
+   *
    * The low watermark offset value, calculated only if the local replica is the partition leader
    * It is only used by leader broker to decide when DeleteRecordsRequest is satisfied. Its value is minimum logStartOffset of all live replicas
    * Low watermark will increase when the leader broker receives either FetchRequest or DeleteRecordsRequest.
@@ -1250,9 +1303,11 @@ class Partition(val topicPartition: TopicPartition,
     if (needsIsrUpdate) {
       val alterIsrUpdateOpt = inWriteLock(leaderIsrUpdateLock) {
         leaderLogIfLocal.flatMap { leaderLog =>
+          // TODO 获取要被移除isr列表的副本
           val outOfSyncReplicaIds = getOutOfSyncReplicas(replicaLagTimeMaxMs)
           partitionState match {
             case currentState: CommittedPartitionState if outOfSyncReplicaIds.nonEmpty =>
+              // 日志
               val outOfSyncReplicaLog = outOfSyncReplicaIds.map { replicaId =>
                 val replicaStateSnapshot = getReplica(replicaId).map(_.stateSnapshot)
                 val logEndOffsetMessage = replicaStateSnapshot
@@ -1263,11 +1318,14 @@ class Partition(val topicPartition: TopicPartition,
                   .getOrElse("unknown")
                 s"(brokerId: $replicaId, endOffset: $logEndOffsetMessage, lastCaughtUpTimeMs: $lastCaughtUpTimeMessage)"
               }.mkString(" ")
+
+              // 计算新的ISR列表
               val newIsrLog = (partitionState.isr -- outOfSyncReplicaIds).mkString(",")
               info(s"Shrinking ISR from ${partitionState.isr.mkString(",")} to $newIsrLog. " +
                 s"Leader: (highWatermark: ${leaderLog.highWatermark}, " +
                 s"endOffset: ${leaderLog.logEndOffset}). " +
                 s"Out of sync replicas: $outOfSyncReplicaLog.")
+              // 准备收缩ISR列表
               Some(prepareIsrShrink(currentState, outOfSyncReplicaIds))
             case _ =>
               None
@@ -1306,8 +1364,9 @@ class Partition(val topicPartition: TopicPartition,
    *
    * If an ISR update is in-flight, we will return an empty set here
    **/
-  def getOutOfSyncReplicas(maxLagMs: Long): Set[Int] = {
+  def getOutOfSyncReplicas(maxLagMs: Long): Set[Int] = { // maxLagMs 默认30s
     val current = partitionState
+    // partitionState只有为Commit的时候 isInflight才返回false
     if (!current.isInflight) {
       val candidateReplicaIds = current.isr - localBrokerId
       val currentTimeMs = time.milliseconds()
@@ -1365,21 +1424,30 @@ class Partition(val topicPartition: TopicPartition,
   def appendRecordsToLeader(records: MemoryRecords, origin: AppendOrigin, requiredAcks: Int,
                             requestLocal: RequestLocal, verificationGuard: VerificationGuard = VerificationGuard.SENTINEL): LogAppendInfo = {
     val (info, leaderHWIncremented) = inReadLock(leaderIsrUpdateLock) {
+      // 获取到leader Partition
       leaderLogIfLocal match {
         case Some(leaderLog) =>
+
+          // 配置的最小有效的isr数量
           val minIsr = effectiveMinIsr(leaderLog)
+          // isr个数
           val inSyncSize = partitionState.isr.size
 
           // Avoid writing to leader if there are not enough insync replicas to make it safe
+          // 如果配置文件中配置的min.InSyncReplicas数量大于当前在线的isr数量 且 acks 配置的1，则抛出replica不足的错误
           if (inSyncSize < minIsr && requiredAcks == -1) {
             throw new NotEnoughReplicasException(s"The size of the current ISR ${partitionState.isr} " +
               s"is insufficient to satisfy the min.isr requirement of $minIsr for partition $topicPartition")
           }
 
+          /**
+           * TODO 添加到leader的log中
+           */
           val info = leaderLog.appendAsLeader(records, leaderEpoch = this.leaderEpoch, origin,
             interBrokerProtocolVersion, requestLocal, verificationGuard)
 
           // we may need to increment high watermark since ISR could be down to 1
+          // TODO 更新 HW
           (info, maybeIncrementLeaderHW(leaderLog))
 
         case None =>
@@ -1388,6 +1456,7 @@ class Partition(val topicPartition: TopicPartition,
       }
     }
 
+    // 修改状态量
     info.copy(if (leaderHWIncremented) LeaderHwChange.INCREASED else LeaderHwChange.SAME)
   }
 
@@ -1421,8 +1490,13 @@ class Partition(val topicPartition: TopicPartition,
     fetchTimeMs: Long,
     maxBytes: Int,
     minOneMessage: Boolean,
-    updateFetchState: Boolean
+    updateFetchState: Boolean // 如果是follower，则这里为 true
   ): LogReadInfo = {
+    /**
+     * 从本地日志中读取消息
+     * @param log
+     * @return
+     */
     def readFromLocalLog(log: UnifiedLog): LogReadInfo = {
       readRecords(
         log,
@@ -1450,6 +1524,7 @@ class Partition(val topicPartition: TopicPartition,
         (replica, logReadInfo)
       }
 
+      // TODO 更新 follower 的拉取状态，这里可能更新了HW的值，但是在本次返回的 logReadInfo 中的HW貌似未更新
       if (updateFetchState && !logReadInfo.divergingEpoch.isPresent) {
         updateFollowerFetchState(
           replica,
@@ -1473,6 +1548,12 @@ class Partition(val topicPartition: TopicPartition,
     }
   }
 
+  /**
+   * 返回 follower replica
+   * @param replicaId
+   * @param fetchPartitionData
+   * @return
+   */
   private def followerReplicaOrThrow(
     replicaId: Int,
     fetchPartitionData: FetchRequest.PartitionData
@@ -1552,14 +1633,14 @@ class Partition(val topicPartition: TopicPartition,
           initialLastStableOffset)
       }
     }
-
+    // TODO 从本地log中读取数据
     val fetchedData = localLog.read(
       fetchOffset,
       maxBytes,
       fetchIsolation,
       minOneMessage
     )
-
+    // 封装读取到的log日志
     new LogReadInfo(
       fetchedData,
       Optional.empty(),
@@ -1796,8 +1877,11 @@ class Partition(val topicPartition: TopicPartition,
     // When shrinking the ISR, we cannot assume that the update will succeed as this could
     // erroneously advance the HW if the `AlterPartition` were to fail. Hence the "maximal ISR"
     // for `PendingShrinkIsr` is the the current ISR.
+    // 当缩小ISR时，我们不能假设更新会成功，因为如果 “更改” 失败，这可能会错误地推进HW。因此，“pendingshrinkisr” 的 “最大ISR” 是当前ISR。
     val isrToSend = partitionState.isr -- outOfSyncReplicaIds
+
     val isrWithBrokerEpoch = addBrokerEpochToIsr(isrToSend.toList)
+
     val newLeaderAndIsr = LeaderAndIsr(
       localBrokerId,
       leaderEpoch,
@@ -1805,6 +1889,7 @@ class Partition(val topicPartition: TopicPartition,
       isrWithBrokerEpoch,
       partitionEpoch
     )
+
     val updatedState = PendingShrinkIsr(
       outOfSyncReplicaIds,
       newLeaderAndIsr,
@@ -1844,6 +1929,7 @@ class Partition(val topicPartition: TopicPartition,
 
   private def submitAlterPartition(proposedIsrState: PendingPartitionChange): CompletableFuture[LeaderAndIsr] = {
     debug(s"Submitting ISR state change $proposedIsrState")
+    // TODO 提交isr修改申请，如果用zk了，那么这里修改的就是zk中的元数据
     val future = alterIsrManager.submit(
       new TopicIdPartition(topicId.getOrElse(Uuid.ZERO_UUID), topicPartition),
       proposedIsrState.sentLeaderAndIsr,
@@ -1866,7 +1952,7 @@ class Partition(val topicPartition: TopicPartition,
           shouldRetry = handleAlterPartitionError(proposedIsrState, Errors.forException(e))
         }
       }
-
+      // HW增加了，说明有一条消息已写入全部副本中，所有可以尝试去完成部分延迟请求
       if (hwIncremented) {
         tryCompleteDelayedRequests()
       }
@@ -1977,6 +2063,7 @@ class Partition(val topicPartition: TopicPartition,
       proposedIsrState.notifyListener(alterPartitionListener)
 
       // we may need to increment high watermark since ISR could be down to 1
+      // 我们可能需要增加高水印，因为ISR可能会降至1
       leaderLogIfLocal.exists(log => maybeIncrementLeaderHW(log))
     }
   }
